@@ -5,6 +5,9 @@
   margin:0;
   padding:0;
 }
+table {
+  border: none;
+}
 </style>
 </head>
 
@@ -42,7 +45,7 @@ var percentwidth = 100 / viewwidth;
 var simwidth = 33;
 var widthd = 2 * simwidth;
 var no = 0;
-   text += "<table style=\"width: 100%; height=" + widthd + "%\" border=\"0\"><tr><td rowspan=\"2\" style=\"width: " + widthd + "%; height: " + widthd + "%\"><iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+   text += "<table style=\"width: 100%; height=" + widthd + "%\" cellspacing=\"0\" cellpadding=\"0\"><tr><td rowspan=\"2\" style=\"width: " + widthd + "%; height: " + widthd + "%\"><iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
 no++;
        text += "</td><td style=\"height: " + simwidth + "%; width: " + simwidth + "%\">";
        text += "<iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
