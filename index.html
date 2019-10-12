@@ -1,0 +1,61 @@
+<html>
+<head>
+<style>
+*{
+  margin:0;
+  padding:0;
+}
+</style>
+</head>
+
+<body bgcolor="#000000">
+<div id="demo"></div>
+
+<script>
+var link;
+var xmlhttp = new XMLHttpRequest();
+xmlhttp.onreadystatechange = function() {
+  if (this.readyState == 4 && this.status == 200) {
+    link = JSON.parse(this.responseText);
+    document.getElementById("demo").innerHTML = generateIframe(); 
+  }
+};
+xmlhttp.open("GET", "weather_link.json", true);
+xmlhttp.send();
+
+function generateIframe() {
+var urlParams = new URLSearchParams(window.location.search);
+if ( urlParams.has('view') ) {
+  var view = urlParams.get('view');
+} else {
+  var view = 4;
+}
+
+var viewwidth = Math.ceil(Math.sqrt(view));
+var viewheight = Math.ceil(view / viewwidth);
+
+var percentheight = 100 / viewheight;
+var percentwidth = 100 / viewwidth;
+
+var text = "";
+var i;
+var j;
+var no;
+for (i = 0; i < viewheight; i++){
+   for (j = 0; j < viewwidth; j++) {
+       no = viewwidth * i + j;
+       if (no < view) {
+       text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>"
+       }
+   }
+   if (i < viewheight - 1) {
+       text += "<br>";
+   }
+}
+return text;
+}
+
+</script>
+
+</body>
+</html>
