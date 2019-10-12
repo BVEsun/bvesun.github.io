@@ -28,8 +28,35 @@ var urlParams = new URLSearchParams(window.location.search);
 if ( urlParams.has('view') ) {
   var view = urlParams.get('view');
 } else {
-  var view = 4;
+  var view = "9x";
 }
+
+if (isNaN(view)) {
+   var text = "";
+
+
+var viewwidth = 3;
+var viewheight = 3;
+var percentheight = 100 / viewheight;
+var percentwidth = 100 / viewwidth;
+var simwidth = 33;
+var widthd = 2 * simwidth;
+var no = 0;
+   text += "<table style=\"width: 100%; height=" + widthd + "%\" border=\"0\"><tr><td rowspan=\"2\" style=\"width: " + widthd + "%; height: " + widthd + "%\"><iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+no++;
+       text += "</td><td style=\"height: " + simwidth + "%; width: " + simwidth + "%\">";
+       text += "<iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+       no++;
+       text += "</td></tr><tr><td style=\"height: " + simwidth + "%; width: " + simwidth + "%\">";
+       text += "<iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+       no++;
+       text += "</td></tr></table>";
+       text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+       no++;
+         text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+       no++;
+       text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+} else {
 
 var viewwidth = Math.ceil(Math.sqrt(view));
 var viewheight = Math.ceil(view / viewwidth);
@@ -51,6 +78,7 @@ for (i = 0; i < viewheight; i++){
    if (i < viewheight - 1) {
        text += "<br>";
    }
+}
 }
 return text;
 }
