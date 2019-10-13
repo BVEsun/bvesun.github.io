@@ -47,7 +47,7 @@ var percentwidth = 100 / viewwidth;
 var widthd = 2 * percentwidth;
 var no = 0;
 
-       text += "<table style=\"width: 100%; height=" + widthd + "%\" cellspacing=\"0\" cellpadding=\"0\">"
+       text += "<table style=\"width: 100%; height=100%\" cellspacing=\"0\" cellpadding=\"0\">"
        text += "<tr><td colspan=\"2\" rowspan=\"2\" style=\"width: " + widthd + "%; height: " + widthd + "%\">"
        text += "<iframe style=\"height: 100%; width: 100%\" src=\"" + linkobj[linkobj.findIndex(i => i.id === no.toString())].link + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe></td>";
        for (no = 1; no < 3; no++) {
