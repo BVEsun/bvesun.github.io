@@ -19,12 +19,15 @@ var link;
 var xmlhttp = new XMLHttpRequest();
 xmlhttp.onreadystatechange = function() {
   if (this.readyState == 4 && this.status == 200) {
-    link = JSON.parse(this.responseText);
+    linkobj = JSON.parse(this.responseText);
     document.getElementById("demo").innerHTML = generateIframe(); 
+    console.log(linkobj[linkobj.findIndex(i => i.id === "0")].link);
   }
 };
-xmlhttp.open("GET", "weather_link.json", true);
+xmlhttp.open("GET", "new_weather_link_test.json", true);
 xmlhttp.send();
+
+
 
 function generateIframe() {
 var urlParams = new URLSearchParams(window.location.search);
@@ -35,29 +38,26 @@ if ( urlParams.has('view') ) {
 }
 
 if (isNaN(view)) {
-   var text = "";
 
-
+var text = "";
 var viewwidth = 3;
 var viewheight = 3;
 var percentheight = 100 / viewheight;
 var percentwidth = 100 / viewwidth;
 var widthd = 2 * percentwidth;
 var no = 0;
-   text += "<table style=\"width: 100%; height=" + widthd + "%\" cellspacing=\"0\" cellpadding=\"0\"><tr><td rowspan=\"2\" style=\"width: " + widthd + "%; height: " + widthd + "%\"><iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
-no++;
-       text += "</td><td style=\"height: " + percentwidth + "%; width: " + percentwidth + "%\">";
-       text += "<iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
-       no++;
-       text += "</td></tr><tr><td style=\"height: " + percentwidth + "%; width: " + percentwidth + "%\">";
-       text += "<iframe style=\"height: 100%; width: 100%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
-       no++;
-       text += "</td></tr></table>";
-       text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
-       no++;
-         text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
-       no++;
-       text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>";
+
+       text += "<table style=\"width: 100%; height=" + widthd + "%\" cellspacing=\"0\" cellpadding=\"0\">"
+       text += "<tr><td colspan=\"2\" rowspan=\"2\" style=\"width: " + widthd + "%; height: " + widthd + "%\">"
+       text += "<iframe style=\"height: 100%; width: 100%\" src=\"" + linkobj[linkobj.findIndex(i => i.id === no.toString())].link + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe></td>";
+       for (no = 1; no < 3; no++) {
+       text += "<td style=\"height: " + percentwidth + "%; width: " + percentwidth + "%\"><iframe style=\"height: 100%; width: 100%\" src=\"" + linkobj[linkobj.findIndex(i => i.id === no.toString())].link + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe></td>";
+       text += "</tr><tr>";
+       }
+       for (no = 3; no < 6; no++) {
+       text += "<td style=\"height: " + percentwidth + "%; width: " + percentwidth + "%\"><iframe style=\"height: 100%; width: 100%\" src=\"" + linkobj[linkobj.findIndex(i => i.id === no.toString())].link + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe></td>";
+       }
+       text += "</tr></table>";
 } else {
 
 var viewwidth = Math.ceil(Math.sqrt(view));
@@ -74,7 +74,7 @@ for (i = 0; i < viewheight; i++){
    for (j = 0; j < viewwidth; j++) {
        no = viewwidth * i + j;
        if (no < view) {
-       text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + link[no] + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>"
+       text += "<iframe style=\"height: " + percentheight + "%; width: " + percentwidth + "%\" src=\"" + linkobj[linkobj.findIndex(i => i.id === no.toString())].link + "\" frameborder=\"0\" allow=\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>"
        }
    }
    if (i < viewheight - 1) {
