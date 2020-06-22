@@ -26,8 +26,8 @@ xmlhttp.onreadystatechange = function() {
 };
 
 var urlParams = new URLSearchParams(window.location.search);
-if ( urlParams.get('type') == "news" ) {
-    xmlhttp.open("GET", "news.json", true); 
+if ( urlParams.has('type') ) {
+    xmlhttp.open("GET", urlParams.get('type').concat(".json"), true); 
 } else {
     xmlhttp.open("GET", "new_weather_link_test.json", true);
 }
