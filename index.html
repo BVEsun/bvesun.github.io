@@ -24,13 +24,18 @@ xmlhttp.onreadystatechange = function() {
     console.log(linkobj[linkobj.findIndex(i => i.id === "0")].link);
   }
 };
-xmlhttp.open("GET", "new_weather_link_test.json", true);
+
+var urlParams = new URLSearchParams(window.location.search);
+if ( urlParams.get('type') == "news" ) {
+    xmlhttp.open("GET", "news.json", true); 
+} else {
+    xmlhttp.open("GET", "new_weather_link_test.json", true);
+}
 xmlhttp.send();
 
 
 
 function generateIframe() {
-var urlParams = new URLSearchParams(window.location.search);
 if ( urlParams.has('view') ) {
   var view = urlParams.get('view');
 } else {
