@@ -21,7 +21,7 @@ xmlhttp.onreadystatechange = function() {
   if (this.readyState == 4 && this.status == 200) {
     linkobj = JSON.parse(this.responseText);
     document.getElementById("demo").innerHTML = generateIframe(); 
-    console.log(linkobj[linkobj.findIndex(i => i.id === "0")].link);
+    //console.log(linkobj[linkobj.findIndex(i => i.id === "0")].link);
   }
 };
 
