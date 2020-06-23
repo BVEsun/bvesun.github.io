@@ -42,6 +42,13 @@ if ( urlParams.has('view') ) {
   var view = "9x";
 }
 
+if ( urlParams.has('top') ) {
+  var top = urlParams.get('top');
+  var toplink = linkobj[top].link;
+  linkobj[top].link = linkobj[0].link;
+  linkobj[0].link = toplink;
+}
+
 if (isNaN(view)) {
 
 var text = "";
