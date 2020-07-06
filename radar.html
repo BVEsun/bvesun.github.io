@@ -1,0 +1,315 @@
+<html>
+<head>
+<style type="text/css">
+    .active{
+        z-index:99;
+    }
+input, select, option, textarea {
+    font-size: 150%;
+    font-family: Comic Sans, Comic Sans MS, cursive;
+}
+button {
+    font-size: 180%;
+    font-family: Comic Sans, Comic Sans MS, cursive;
+}
+img {
+    height: 650px;
+}
+</style>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+<script>
+
+var updatespeed = 256;
+var ranges="064";
+var anistart=0;
+var lenofani=20;
+var displace=1;
+
+function olrun() {
+  $("#fname").val(lenofani);
+  $("#fdisp").val(displace);
+  for (i = 1;i < lenofani-1;i++) {
+    $("#pic1").after('<img src="" style="position:absolute;"/>');
+  };
+  updatepic();
+};
+
+function updatepic() {
+
+
+  $("#upspeed").text(updatespeed);
+  var websi = [];
+  for (i = 1;i < lenofani + 1;i++) {
+    websi.push("i");
+  };
+  var d = new Date();
+  d.setTime(d.valueOf() + 180000);
+  if (ranges != "064") {
+    d.setTime(d.valueOf() + 360000*displace);
+  };  
+  for (i = 1; i < lenofani + 1; i++) {
+    d.setTime(d.valueOf() - 360000*displace);
+    if (ranges != "064") {
+      d.setTime(d.valueOf() - 360000*displace);
+    };
+    var yy = d.getFullYear().toString();
+    var mm = (d.getMonth() + 1).toString();
+    var dd = d.getDate().toString();
+    var hh = d.getHours().toString();
+    var minute = d.getMinutes();
+    if (mm.length < 2) {
+        mm = "0".concat(mm);
+    };
+    if (dd.length < 2) {
+        dd = "0".concat(dd);
+    };
+    if (hh.length < 2) {
+        hh = "0".concat(hh);
+    };
+    minweb = Math.floor(minute/6);
+    minweb = (minweb * 6).toString();
+    if (ranges != "064") {
+        minweb = Math.floor(minute/12);
+        minweb = (minweb * 12).toString();
+    } else {
+        minweb = Math.floor(minute/6);
+        minweb = (minweb * 6).toString();
+    };
+    if (minweb.length < 2) {
+        minweb = "0".concat(minweb);
+    };
+    var webst = "http://www.weather.gov.hk/wxinfo/radars/rad_".concat(ranges,"_png/2d",ranges,"iradar_");
+    var webend = ".jpg";
+    websi[i] = webst.concat(yy,mm,dd,hh,minweb,webend);
+  };
+
+    
+    var $actpic = $("#pic1");
+    for (i = 1;i < lenofani + 1;i++) {
+    $actpic.attr("src",websi[lenofani + 1 - i]);
+    $actpic = $actpic.next();
+    };
+}
+
+function slideSwitch() {
+
+    var $active = $('#slideshow IMG.active');
+    
+    if ( $active.length == 0 ) $active = $('#slideshow IMG:last');
+
+    var $next =  $active.next().length ? $active.next()
+        : $('#slideshow IMG:first');
+
+    $active.addClass('last-active');
+        
+    $next.css({opacity: 0.0})
+        .addClass('active')
+        .animate({opacity: 1.0}, updatespeed/5, function() {
+            $active.removeClass('active last-active');
+        });
+}
+
+function goLast() {
+
+    if (anistart) {
+        clearInterval(updatevar);
+        anistart=0;
+    };
+
+    var $active = $('#slideshow IMG.active');
+    
+    if ( $active.length == 0 ) $active = $('#slideshow IMG:last');
+
+    var $next = $('#slideshow IMG:last');
+
+    $active.addClass('last-active');
+
+    $active.removeClass('active last-active')
+        
+    $next.addClass('active');
+}
+
+function slidereverse() {
+
+    var $active = $('#slideshow IMG.active');
+
+    if ( $active.length == 0 ) $active = $('#slideshow IMG:first');
+
+    var $next =  $active.prev().length ? $active.prev()
+        : $('#slideshow IMG:last');
+
+    $active.addClass('last-active');
+        
+    $next.css({opacity: 0.0})
+        .addClass('active')
+        .animate({opacity: 1.0}, updatespeed/5, function() {
+            $active.removeClass('active last-active');
+        });
+}
+
+function framechange() {
+
+        var diff = $("#fname").val() - lenofani;
+        if (diff > 0) {
+           for (i = 1;i < diff+1;i++) {
+                   $("#pic1").after('<img src="" style="position:absolute;" />');
+           };
+        } else {
+           for (i = 1;i < -diff+1;i++) {
+                   $("#pic1").next().remove();
+           };
+        };
+        lenofani = Number($("#fname").val());
+        updatepic();
+}
+
+function dischange() {
+
+        displace = Number($("#fdisp").val());
+        updatepic();
+}
+
+$(function() {
+    setInterval( "updatepic()", 60000 );
+});
+
+$(document).ready(function(){
+    $("#minus").click(function(){
+        updatespeed=updatespeed/2;
+        $("#upspeed").text(updatespeed);
+        clearInterval(updatevar);
+        updatevar=setInterval( "slideSwitch()", updatespeed );
+    });
+    $("#plus").click(function(){
+        updatespeed=updatespeed*2;
+        $("#upspeed").text(updatespeed);
+        clearInterval(updatevar);
+        updatevar=setInterval( "slideSwitch()", updatespeed );
+    });
+    $("#stopb").click(function(){
+        clearInterval(updatevar);
+        anistart=0;
+    });
+    $("#resumeb").click(function(){
+        if (!anistart) {
+            updatevar=setInterval( "slideSwitch()", updatespeed );
+            anistart=1;
+        };
+    });
+    $("#range064").click(function(){
+        ranges="064";
+        updatepic();
+    });
+    $("#range128").click(function(){
+        ranges="128";
+        updatepic();
+    });
+    $("#range256").click(function(){
+        ranges="256";
+        updatepic();
+    });
+    
+    $("#framechange").click(function(){
+        framechange();
+    });
+    $("#dischange").click(function(){
+        dischange();
+    });
+    $("#to10").click(function() {
+        $("#fname").val(10);
+        framechange();
+    });
+    $("#to20").click(function() {
+        $("#fname").val(20);
+        framechange();
+    });
+    $("#to40").click(function() {
+        $("#fname").val(40);
+        framechange();
+    });
+    $("#to60").click(function() {
+        $("#fname").val(60);
+        framechange();
+    });
+    $("#to120").click(function() {
+        $("#fname").val(120);
+        framechange();
+    });
+});
+$(document).keydown(function(e) {
+    switch (e.which) {
+        case 65:
+	    if (!anistart) {
+        	updatevar=setInterval( "slideSwitch()", updatespeed );
+	        anistart=1;
+            };
+            break;
+        case 66: 
+            slidereverse();
+            break;
+        case 68: 
+            updatespeed=updatespeed*2;
+            $("#upspeed").text(updatespeed);
+            if (anistart) {
+                clearInterval(updatevar);
+                updatevar=setInterval( "slideSwitch()", updatespeed );
+            };
+            break;
+        case 78:
+            slideSwitch();
+            break;
+        case 83:
+            clearInterval(updatevar);
+            anistart=0;
+            break;
+        case 85:
+            updatespeed=updatespeed/2;
+            $("#upspeed").text(updatespeed);
+            if (anistart) {
+                clearInterval(updatevar);
+                updatevar=setInterval( "slideSwitch()", updatespeed );
+            };
+            break;
+    };
+});
+
+</script>
+</head>
+
+<body onload="olrun()">
+<table width="100%">
+<tr>
+<td colspan="2">
+<div id="slideshow" style="height: 650px">
+    <img id="pic1" src="" style="position:absolute;"/>
+    <img src="" style="position:absolute;" class="active" />
+</div>
+</td>
+</tr>
+<center>
+    <tr>
+        <td>Refresh Rate: </td>
+        <td><button id="resumeb">animate</button><button id="stopb">stop</button><button onclick="slideSwitch()">next</button><button onclick="slidereverse()">Back</button><button onclick="goLast()">Go Last</button></td>
+    </tr>
+    <tr>
+        <td><p id="upspeed"></p></td>
+        <td><button id="minus">Speed up</button><button id="plus">Slow down</button></td>
+    </tr>
+    <tr>
+        <td>Range: </td>
+        <td><button id="range064">064</button><button id="range128">128</button><button id="range256">256</button></td>
+    </tr>
+    <tr>
+        <td>Frame: </td>
+        <td><input type="number" min="2" max="360" id="fname" value="" size="6"><button id="framechange">ok</button><button id="to10">10</button><button id="to20">20</button><button id="to40">40</button><button id="to60">60</button><button id="to120">120</button></td>
+    </tr>
+    <tr>
+        <td>timeskip: </td>
+        <td><input type="number" min="1" max="10" id="fdisp" value="" size="6"><button id="dischange">ok</button></td>
+    </tr>
+</center>
+</table>
+
+
+</body>
+</html>
