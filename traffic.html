@@ -1,5 +1,23 @@
 <html>
-	<body>
-		hello world
-	</body>
+<head>
+<script
+			  src="https://code.jquery.com/jquery-3.6.0.min.js"
+			  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+			  crossorigin="anonymous"></script>
+<script>
+	$(document).ready(function(){
+$("button").click(function(){
+  $.ajax({url: "https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002593/702", success: function(result){
+    $("#div1").html(result);
+	  console.log(result);
+  }});
+});
+});
+</script>
+</head>
+<body>
+
+	<div id="div1"><h2>TEST</h2></div>
+	<button>Get</button>
+</body>
 </html>
