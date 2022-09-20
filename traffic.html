@@ -7,7 +7,7 @@
             font-size: 150%;
     }
     tr {
-            font-size: 350%;
+            font-size: 300%;
             text-align: center;
     }
     table, th, td {
@@ -109,7 +109,7 @@
   var cell3 = row.insertCell(2);
   var cell4 = row.insertCell(3);
   cell1.innerHTML = ans[i][0];
-  cell2.innerHTML = '往: ' + ans[i][1];
+  cell2.innerHTML = ans[i][1];
   cell3.innerHTML = ans[i][2].split('T')[1].split('+')[0];
   cell4.innerHTML = minSec(new Date(ans[i][2]));
 			};
