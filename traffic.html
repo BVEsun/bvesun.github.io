@@ -1,23 +1,152 @@
 <html>
 <head>
+	<style type="text/css">
+    body, html {
+      font-family: sans-serif;
+            font-size: 150%;
+    }
+    tr {
+            font-size: 200%;
+            text-align: center;
+    }
+    table, th, td {
+  border:1px solid black;
+}
+            .dropdown:hover .dropdown-menu {
+    display: block;
+    margin-top: 0; // remove the gap so it doesn't close
+ }
+
+.navbar {
+  font-size: 37px;
+}
+
+.title {
+  text-align: center;
+  font-size: 65px;
+}
+.content {
+  text-align: center;
+  font-size: 70px;
+}
+  </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/datejs/1.0/date.min.js" integrity="sha512-/n/dTQBO8lHzqqgAQvy0ukBQ0qLmGzxKhn8xKrz4cn7XJkZzy+fAtzjnOQd5w55h4k1kUC+8oIe6WmrGUYwODA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script
 			  src="https://code.jquery.com/jquery-3.6.0.min.js"
 			  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
 			  crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
 <script>
+	var ans=[];
+	var curnow=new Date();
+	var queryList=[];
+	var theTimer;
 	$(document).ready(function(){
-$("button").click(function(){
-  $.ajax({url: "https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002593/702", success: function(result){
-    $("#div1").html(result);
-	  console.log(result);
-  }});
-});
+		function sortFunction(a, b) {
+			if (a[1] === b[1]) {
+        			return 0;
+    			}
+    			else {
+        			return (a[1] < b[1]) ? -1 : 1;
+    			}
+		}
+		function minSec(eta){
+                    eta = Math.round((eta - curnow)/1000);
+                    sec=eta % 60;
+                    min=(eta - sec)/60
+                    return min + ":" + String(sec).padStart(2, '0');
+		}
+		function checkEta(urlX, seqX, route) {
+			$.ajax({url: urlX, success: function(result){
+                		result.data.forEach((element) => {
+					if (element.eta != "" && element.eta != null) {
+						if (element.seq == seqX) {
+                                			ans.push([route, element.eta])
+						}
+					}
+                          	});
+			//console.log(result);
+			}});
+		}
+		function hoiLai() {
+			queryList=[["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/702",1,702],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/701",1,701],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/971",1,971],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/914",1,914],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/CTB/003222/A21",20,"A21"],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/003222/702B",1,"702B"],["https://data.etabus.gov.hk/v1/transport/kmb/eta/296E43213D6DB624/12/1",1,12],["https://data.etabus.gov.hk/v1/transport/kmb/eta/366341F6311738C5/914/1",1,914]];	
+			updateTime();
+		}
+		$('#listHoiLai').click(hoiLai);
+		function namCheung() {
+			queryList=[["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002593/702",29,702],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002593/702B",11,"702B"],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002593/701",13,701],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002593/971",43,971],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002593/914",28,914],["https://data.etabus.gov.hk/v1/transport/kmb/eta/CC9AE3EF28E5725F/12/1",14,12],["https://data.etabus.gov.hk/v1/transport/kmb/eta/CC9AE3EF28E5725F/914/1",28,914]];
+			updateTime();
+		}
+		$('#listNamCheung').click(namCheung);
+		function updateTime() {
+			window.clearTimeout(theTimer);
+			ans=[];
+			queryList.forEach((element) => {
+				checkEta(element[0],element[1],element[2]);
+			})
+			theTimer = setTimeout(updateTime, 60000);
+			console.log(new Date());
+                }
+		$('#updateId').click(updateTime);
+		function updateTable() {
+	        curnow=new Date();
+			ans.sort(sortFunction);
+				var table = document.getElementById("myTable");
+					              while (table.rows.length > 1) {
+                      table.deleteRow(-1);
+              }
+            if (ans.length < 8) {
+                    tabLen = ans.length }
+            else {
+                    tabLen = 8
+            }
+            for (let i = 0; i < tabLen; i++) {
+  var row = table.insertRow(-1);
+  var cell1 = row.insertCell(0);
+  var cell2 = row.insertCell(1);
+  var cell3 = row.insertCell(2);
+  var cell4 = row.insertCell(3);
+  cell1.innerHTML = i;
+  cell2.innerHTML = ans[i][0];
+  //cell3.innerHTML = ans[i].start.split('T')[1].split('+')[0];
+  cell3.innerHTML = ans[i][1].split('T')[1].split('+')[0];
+  cell4.innerHTML = minSec(new Date(ans[i][1]));
+			};
+				setTimeout(updateTable, 1000);
+		}
+			setTimeout(updateTable, 1000);
+			namCheung();
 });
 </script>
 </head>
 <body>
+<nav class="navbar navbar-expand bg-dark navbar-dark fixed-bottom">
 
-	<div id="div1"><h2>TEST</h2></div>
-	<button>Get</button>
+  <!-- Links -->
+  <ul class="navbar-nav py-0">
+
+    <li class="nav-item py-0">
+      <a class="nav-link py-0" href="#" id="listHoiLai">Hoi Lai</a>
+    </li>
+    <li class="nav-item py-0">
+      <a class="nav-link py-0" href="#" id="listNamCheung" >Nam Cheung</a>
+    </li>
+  </ul>
+  <ul class="navbar-nav py-0 ml-auto">
+    <li class="nav-item py-0">
+      <a class="nav-link py-0" href="#" id="updateId" >Update</a>
+    </li>
+  </ul>
+</nav>
+	  <table id="myTable" style="width:100%">
+  <tr>
+    <th>Next</th>
+    <th>Bus</th>
+    <th>eta</th>
+    <th>remain</th>
+  </tr>
+  </table>
 </body>
 </html>
