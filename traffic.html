@@ -70,6 +70,11 @@
 			//console.log(result);
 			}});
 		}
+		function a21toA() {
+			queryList=[["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/CTB/003222/A21",20,"A21"]];	
+			updateTime();
+		}
+		$('#listA21toA').click(a21toA);
 		function hoiLai() {
 			queryList=[["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/702",1,702],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/701",1,701],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/971",1,971],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/002891/914",1,914],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/CTB/003222/A21",20,"A21"],["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/NWFB/003222/702B",1,"702B"],["https://data.etabus.gov.hk/v1/transport/kmb/eta/296E43213D6DB624/12/1",1,12],["https://data.etabus.gov.hk/v1/transport/kmb/eta/366341F6311738C5/914/1",1,914]];	
 			updateTime();
@@ -126,6 +131,9 @@
   <!-- Links -->
   <ul class="navbar-nav py-0 ml-auto">
 
+    <li class="nav-item py-0">
+      <a class="nav-link py-0" href="#" id="listA21toA">A21toA</a>
+    </li>
     <li class="nav-item py-0">
       <a class="nav-link py-0" href="#" id="listHoiLai">海麗</a>
     </li>
