@@ -58,6 +58,16 @@
                     min=(eta - sec)/60
                     return min + ":" + String(sec).padStart(2, '0');
 		}
+		function checkMTR(urlX,rouSta) {
+			$.ajax({url: urlX, success: function(result){
+				result.data[rouSta].DOWN.forEach((element) => {
+					if (element.ttnt != "" && element.ttnt != null) {
+						ans.push([element.ttnt, element.dest, element.time.replace(/\s/g,'T')+'+08:00'])
+					}
+				})
+			}
+		})
+			}
 		function checkEta(urlX, seqX, route) {
 			$.ajax({url: urlX, success: function(result){
                 		result.data.forEach((element) => {
@@ -70,6 +80,16 @@
 			//console.log(result);
 			}});
 		}
+		function nctoHK() {
+			queryList=[["https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta=NAC",'TCL-NAC']];	
+			updateTime();
+		}
+		$('#listNC').click(nctoHK);
+		function tctoHK() {
+			queryList=[["https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta=TUC",'TCL-TUC']];	
+			updateTime();
+		}
+		$('#listTC').click(tctoHK);
 		function a21toA() {
 			queryList=[["https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/CTB/003222/A21",20,"A21"]];	
 			updateTime();
@@ -89,7 +109,11 @@
 			window.clearTimeout(theTimer);
 			ans=[];
 			queryList.forEach((element) => {
+				if (element.length == 2) {
+				checkMTR(element[0],element[1]);
+				} else {
 				checkEta(element[0],element[1],element[2]);
+				}
 			})
 			theTimer = setTimeout(updateTime, 60000);
 			console.log(new Date());
@@ -131,6 +155,12 @@
   <!-- Links -->
   <ul class="navbar-nav py-0 ml-auto">
 
+    <li class="nav-item py-0">
+      <a class="nav-link py-0" href="#" id="listTC">TC</a>
+    </li>
+    <li class="nav-item py-0">
+      <a class="nav-link py-0" href="#" id="listNC">NC</a>
+    </li>
     <li class="nav-item py-0">
       <a class="nav-link py-0" href="#" id="listA21toA">A21toA</a>
     </li>
