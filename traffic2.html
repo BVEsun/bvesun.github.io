@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hong Kong Transit Times</title>
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --font-size-base: 16px;
+            --font-size-large: 1.8rem;
+            --font-size-xlarge: 2.5rem;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: var(--font-size-base);
+        }
+
+        .transit-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .transit-table th,
+        .transit-table td {
+            border: 1px solid #dee2e6;
+            padding: 0.75rem;
+            text-align: center;
+            font-size: var(--font-size-large);
+        }
+
+        .navbar {
+            font-size: var(--font-size-xlarge);
+        }
+
+        .navbar-nav .nav-link {
+            padding: 0.5rem 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Transit Times Table -->
+    <table id="transitTable" class="transit-table">
+        <thead>
+            <tr>
+                <th>Route</th>
+                <th>Destination</th>
+                <th>ETA</th>
+                <th>Time Remaining</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand bg-dark navbar-dark fixed-bottom">
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <button class="nav-link btn btn-link" data-station="TC">Tung Chung</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link btn btn-link" data-station="NC">Nam Cheong</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link btn btn-link" data-station="A21">A21 to Airport</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link btn btn-link" data-station="hoilai">Hoi Lai</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link btn btn-link" data-station="namcheung">Nam Cheung</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link btn btn-link" id="refreshButton">Refresh</button>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- External Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datejs/1.0/date.min.js"></script>
+
+    <!-- Application Script -->
+    <script>
+        class TransitTimeTracker {
+            constructor() {
+                this.arrivals = [];
+                this.currentTime = new Date();
+                this.queries = [];
+                this.updateTimer = null;
+                this.UPDATE_INTERVAL = 60000; // 1 minute
+                this.REFRESH_INTERVAL = 1000; // 1 second
+                this.MAX_DISPLAY_ROWS = 12;
+
+                this.initializeEventListeners();
+                this.loadDefaultStation();
+            }
+
+            initializeEventListeners() {
+                $('.navbar-nav button[data-station]').click((e) => {
+                    const station = $(e.target).data('station');
+                    this.loadStation(station);
+                });
+
+                $('#refreshButton').click(() => this.updateTimes());
+            }
+
+            loadDefaultStation() {
+                this.loadStation('namcheung');
+            }
+
+            loadStation(stationId) {
+                const stationMap = {
+                    TC: [["https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta=TUC", 'TCL-TUC']],
+                    NC: [["https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta=NAC", 'TCL-NAC']],
+                    A21: [["https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/003222/A21", 20, "A21"]],
+                    hoilai: this.getHoiLaiQueries(),
+                    namcheung: this.getNamCheungQueries()
+                };
+
+                this.queries = stationMap[stationId] || [];
+                this.updateTimes();
+            }
+
+            getHoiLaiQueries() {
+                return [
+                    ["https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/002891/702", 1, 702],
+                    ["https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/002891/701", 1, 701],
+                    // Add other Hoi Lai routes...
+                ];
+            }
+
+            getNamCheungQueries() {
+                return [
+                    ["https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/002593/702", 29, 702],
+                    ["https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/002593/701", 13, 701],
+                    // Add other Nam Cheung routes...
+                ];
+            }
+
+            async fetchTransitData(url, params) {
+                try {
+                    const response = await $.ajax({ url });
+                    if (url.includes('mtr')) {
+                        this.processMTRData(response, params);
+                    } else {
+                        this.processBusData(response, params);
+                    }
+                } catch (error) {
+                    console.error('Error fetching transit data:', error);
+                }
+            }
+
+            processMTRData(data, station) {
+                data.data[station].DOWN.forEach(train => {
+                    if (train.ttnt) {
+                        this.arrivals.push([
+                            train.ttnt,
+                            train.dest,
+                            train.time.replace(/\s/g, 'T') + '+08:00'
+                        ]);
+                    }
+                });
+            }
+
+            processBusData(data, { seq, route }) {
+                data.data.forEach(bus => {
+                    if (bus.eta && bus.seq === seq) {
+                        this.arrivals.push([route, bus.dest_tc, bus.eta]);
+                    }
+                });
+            }
+
+            formatTimeRemaining(eta) {
+                const seconds = Math.round((new Date(eta) - this.currentTime) / 1000);
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+            }
+
+            updateDisplay() {
+                const tbody = $('#transitTable tbody');
+                tbody.empty();
+
+                this.arrivals
+                    .sort((a, b) => new Date(a[2]) - new Date(b[2]))
+                    .slice(0, this.MAX_DISPLAY_ROWS)
+                    .forEach(([route, destination, eta]) => {
+                        tbody.append(`
+                            <tr>
+                                <td>${route}</td>
+                                <td>${destination}</td>
+                                <td>${eta.split('T')[1].split('+')[0]}</td>
+                                <td>${this.formatTimeRemaining(eta)}</td>
+                            </tr>
+                        `);
+                    });
+            }
+
+            updateTimes() {
+                clearTimeout(this.updateTimer);
+                this.arrivals = [];
+                this.currentTime = new Date();
+
+                Promise.all(this.queries.map(query => this.fetchTransitData(...query)))
+                    .then(() => {
+                        this.updateTimer = setTimeout(() => this.updateTimes(), this.UPDATE_INTERVAL);
+                    });
+            }
+
+            startPeriodicUpdates() {
+                setInterval(() => this.updateDisplay(), this.REFRESH_INTERVAL);
+            }
+        }
+
+        // Initialize the application
+        $(document).ready(() => {
+            const transitTracker = new TransitTimeTracker();
+            transitTracker.startPeriodicUpdates();
+        });
+    </script>
+</body>
+</html>
