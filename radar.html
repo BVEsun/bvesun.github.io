@@ -65,7 +65,8 @@ function updatepic() {
     if (minweb.length < 2) {
         minweb = "0".concat(minweb);
     };
-    var webst = "https://www.weather.gov.hk/wxinfo/radars/rad_".concat(ranges,"_png/2d",ranges,"iradar_");
+    const swapUnderscore = s => s.includes('_') ? s.split('_').reverse().join('_') + '_' : s;
+    var webst = "https://www.weather.gov.hk/wxinfo/radars/rad_".concat(ranges,"_png/2d",swapUnderscore(ranges),"iradar_");
     var webend = ".jpg";
     websi[i] = webst.concat(yy,mm,dd,hh,minweb,webend);
   };
@@ -183,6 +184,10 @@ $(document).ready(function(){
             anistart=1;
         };
     });
+    $("#2km_range064").click(function(){
+        ranges="2km_064";
+        updatepic();
+    });
     $("#range064").click(function(){
         ranges="064";
         updatepic();
@@ -284,7 +289,7 @@ $(document).keydown(function(e) {
     </tr>
     <tr>
         <td>Range: </td>
-        <td><button id="range064">064</button><button id="range128">128</button><button id="range256">256</button></td>
+        <td><button id="2km_range064">2km_064</button><button id="range064">064</button><button id="range128">128</button><button id="range256">256</button></td>
     </tr>
     <tr>
         <td>Frame: </td>
