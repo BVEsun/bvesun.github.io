@@ -44,14 +44,8 @@ function updatepic() {
   };
   var d = new Date();
   d.setTime(d.valueOf() + 180000);
-  if (ranges != "064") {
-    d.setTime(d.valueOf() + 360000*displace);
-  };  
   for (i = 1; i < lenofani + 1; i++) {
     d.setTime(d.valueOf() - 360000*displace);
-    if (ranges != "064") {
-      d.setTime(d.valueOf() - 360000*displace);
-    };
     var yy = d.getFullYear().toString();
     var mm = (d.getMonth() + 1).toString();
     var dd = d.getDate().toString();
@@ -68,13 +62,6 @@ function updatepic() {
     };
     minweb = Math.floor(minute/6);
     minweb = (minweb * 6).toString();
-    if (ranges != "064") {
-        minweb = Math.floor(minute/12);
-        minweb = (minweb * 12).toString();
-    } else {
-        minweb = Math.floor(minute/6);
-        minweb = (minweb * 6).toString();
-    };
     if (minweb.length < 2) {
         minweb = "0".concat(minweb);
     };
