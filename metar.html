@@ -18,12 +18,14 @@
             text-align: center;
         }
         .chart-container {
-            margin-bottom: 120px; /* Increased margin to prevent overlap */
-            max-height: 600px; /* Increased height for better visibility */
+            margin-bottom: 40px; /* Adjusted margin */
+            height: 500px; /* Fixed height for chart container */
+            margin-top: 30px; /* Added space above chart */
         }
         .controls {
             margin-bottom: 20px;
             text-align: center;
+            margin-top: 20px; /* Added space above controls */
         }
         .controls label {
             margin-right: 10px;
@@ -36,6 +38,7 @@
         .container {
             display: flex;
             justify-content: space-between;
+            margin-top: 40px; /* Added more space between chart and data sections */
         }
         .column {
             flex: 1;
@@ -72,18 +75,18 @@
         <div class="controls">
             <label>Select Elements (up to 2):</label>
             <select id="element1" onchange="updateChart()">
-                <option value="windDir" selected>Wind Direction (｢X)</option>
+                <option value="windDir" selected>Wind Direction (°)</option>
                 <option value="windSpeed">Wind Speed (kt)</option>
                 <option value="qnh">QNH (hPa)</option>
-                <option value="temp">Temperature (｢XC)</option>
+                <option value="temp">Temperature (°C)</option>
                 <option value="visibility">Visibility (m)</option>
             </select>
             <select id="element2" onchange="updateChart()">
                 <option value="">Select Element 2</option>
-                <option value="windDir">Wind Direction (｢X)</option>
+                <option value="windDir">Wind Direction (°)</option>
                 <option value="windSpeed">Wind Speed (kt)</option>
                 <option value="qnh">QNH (hPa)</option>
-                <option value="temp">Temperature (｢XC)</option>
+                <option value="temp">Temperature (°C)</option>
                 <option value="visibility">Visibility (m)</option>
             </select>
             <br><br>
@@ -311,10 +314,15 @@
 
             // Only add axes for selected elements
             const scales = {
-                x: { title: { display: true, text: 'Time (DDHHMM)' } },
-                // Only add y axes for selected elements
-                y: {}
+                x: { 
+                    title: { 
+                        display: true, 
+                        text: 'Time (DDHHMM)' 
+                    }
+                }
             };
+            
+            // Define y-axis configurations
             const elementScales = {
                 windDir: { min: 0, max: 360, position: 'left', title: { display: true, text: 'Wind Direction (°)' } },
                 windSpeed: { min: 0, max: 100, position: 'left', title: { display: true, text: 'Wind Speed (kt)' } },
@@ -323,9 +331,15 @@
                 visibility: { min: 0, max: 10000, position: 'right', title: { display: true, text: 'Visibility (m)' } }
             };
 
-            // Only attach axes that are actually used
-            if (element1) scales.y[element1] = elementScales[element1];
-            if (element2 && element2 !== element1) scales.y[element2] = { ...elementScales[element2], position: 'right' };
+            // Only create y axes for elements that are actually selected and have data
+            if (element1 && datasets.some(ds => ds.yAxisID === element1)) {
+                if (!scales.y) scales.y = {};
+                scales.y[element1] = elementScales[element1];
+            }
+            if (element2 && element2 !== element1 && datasets.some(ds => ds.yAxisID === element2)) {
+                if (!scales.y) scales.y = {};
+                scales.y[element2] = { ...elementScales[element2], position: 'right' };
+            }
 
             // Destroy previous chart
             if (chart) {
@@ -358,6 +372,12 @@
                 const canvas = document.getElementById('metarChart');
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Display "No data to display" message
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data to display. Please check your selections.', canvas.width / 2, canvas.height / 2);
             }
         }
 
