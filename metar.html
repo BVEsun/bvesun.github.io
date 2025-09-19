@@ -19,6 +19,7 @@
         }
         .chart-container {
             margin-bottom: 20px;
+            max-height: 400px;
         }
         .controls {
             margin-bottom: 20px;
@@ -66,8 +67,7 @@
         <div class="controls">
             <label>Select Elements (up to 2):</label>
             <select id="element1" onchange="updateChart()">
-                <option value="">Select Element 1</option>
-                <option value="windDir">Wind Direction (｢X)</option>
+                <option value="windDir" selected>Wind Direction (｢X)</option>
                 <option value="windSpeed">Wind Speed (kt)</option>
                 <option value="qnh">QNH (hPa)</option>
                 <option value="temp">Temperature (｢XC)</option>
@@ -144,6 +144,9 @@
         // Function to fetch and process METAR and TAF data
         async function fetchWeatherData() {
             try {
+                // Clear metarData to prevent accumulation
+                metarData = { VHHH: [], VMMC: [], ZGSZ: [] };
+
                 const response = await fetch('https://aviationweather.gov/api/data/metar?ids=VHHH,VMMC,ZGSZ&taf=true&hours=12&format=raw');
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -197,7 +200,7 @@
                     document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
                 }
 
-                // Initialize chart
+                // Update chart with fresh data
                 updateChart();
             } catch (error) {
                 // Update all sections with error message
@@ -279,25 +282,30 @@
             if (element2 && element2 !== element1) scales.y[element2] = { ...elementScales[element2], position: 'right' };
 
             // Destroy existing chart if it exists
-            if (chart) chart.destroy();
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
 
-            // Create new chart
-            chart = new Chart(document.getElementById('metarChart'), {
-                type: 'line',
-                data: {
-                    labels: Array.from(labels).sort(),
-                    datasets: datasets
-                },
-                options: {
-                    scales: scales,
-                    plugins: {
-                        legend: { display: true },
-                        tooltip: { mode: 'index', intersect: false }
+            // Create new chart only if there are datasets
+            if (datasets.length > 0) {
+                chart = new Chart(document.getElementById('metarChart'), {
+                    type: 'line',
+                    data: {
+                        labels: Array.from(labels).sort(),
+                        datasets: datasets
                     },
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            });
+                    options: {
+                        scales: scales,
+                        plugins: {
+                            legend: { display: true },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
         }
 
         // Fetch data on page load
