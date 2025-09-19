@@ -48,16 +48,43 @@
                 const data = await response.text();
                 
                 // Split the response into lines
-                const lines = data.split('\n');
+                const lines = data.split('\n').filter(line => line.trim() !== '');
                 
-                // Filter METAR (lines that don't start with TAF)
-                const metarData = lines.filter(line => !line.startsWith('TAF') && line.trim() !== '').join('\n');
-                // Filter TAF (lines that start with TAF)
-                const tafData = lines.filter(line => line.startsWith('TAF')).join('\n');
+                // Initialize arrays for METAR and TAF
+                let metarData = [];
+                let tafData = [];
+                let currentTaf = null;
+
+                // Process each line
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (line.startsWith('METAR VHHH')) {
+                        // Start of a new METAR entry
+                        metarData.push(line);
+                    } else if (line.startsWith('TAF VHHH')) {
+                        // Start of a new TAF entry
+                        currentTaf = [line];
+                        // Look ahead to collect all related lines (change groups)
+                        while (i + 1 < lines.length && 
+                               !lines[i + 1].startsWith('METAR VHHH') && 
+                               !lines[i + 1].startsWith('TAF VHHH')) {
+                            i++;
+                            currentTaf.push(lines[i]);
+                        }
+                        // Only keep the most recent TAF (first occurrence in the response)
+                        if (tafData.length === 0) {
+                            tafData = currentTaf;
+                        }
+                    }
+                }
                 
-                // Update DOM with data or fallback messages
-                document.getElementById('metar').textContent = metarData || 'No METAR data available';
-                document.getElementById('taf').textContent = tafData || 'No TAF data available';
+                // Join the data with newlines for display
+                const metarText = metarData.join('\n') || 'No METAR data available';
+                const tafText = tafData.join('\n') || 'No TAF data available';
+                
+                // Update DOM
+                document.getElementById('metar').textContent = metarText;
+                document.getElementById('taf').textContent = tafText;
             } catch (error) {
                 document.getElementById('metar').classList.add('error');
                 document.getElementById('metar').textContent = `Error fetching METAR: ${error.message}`;
