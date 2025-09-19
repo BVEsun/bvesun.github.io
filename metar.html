@@ -156,8 +156,6 @@
 
         function createChartConfig(datasets, labels) {
             logDebug("Creating chart with " + datasets.length + " datasets and " + labels.length + " labels");
-            logDebug("Datasets: " + JSON.stringify(datasets, null, 2));
-            logDebug("Labels: " + JSON.stringify(labels, null, 2));
             
             const usedAxes = new Set();
             datasets.forEach(ds => {
@@ -347,7 +345,6 @@
                 visibility: visibility
             };
             
-            logDebug("Parsed METAR: " + JSON.stringify(parsedData));
             return parsedData;
         }
 
@@ -362,8 +359,6 @@
                 const data = await response.text();
                 const lines = data.split('\n').filter(line => line.trim() !== '');
                 
-                logDebug("Raw API response: " + data);
-                
                 for (const line of lines) {
                     if (line.startsWith('METAR') || line.startsWith('SPECI')) {
                         const parsed = parseMetar(line);
@@ -372,11 +367,6 @@
                         }
                     }
                 }
-                
-                logDebug("Parsed METAR data by station:");
-                logDebug("VHHH: " + JSON.stringify(metarData.VHHH, null, 2));
-                logDebug("VMMC: " + JSON.stringify(metarData.VMMC, null, 2));
-                logDebug("ZGSZ: " + JSON.stringify(metarData.ZGSZ, null, 2));
                 
                 for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
                     const metarText = lines
@@ -411,7 +401,7 @@
             if (document.getElementById('vmmc-check').checked) stations.push('VMMC');
             if (document.getElementById('zgsz-check').checked) stations.push('ZGSZ');
 
-            const datasets = [];
+            // Create a set of all time labels across all selected stations
             const labelsSet = new Set();
             const colors = {
                 VHHH: 'rgba(54, 162, 235, 1)',
@@ -419,6 +409,30 @@
                 ZGSZ: 'rgba(255, 99, 132, 1)'
             };
 
+            // First, collect all unique time labels
+            stations.forEach(station => {
+                if (!metarData[station] || metarData[station].length === 0) {
+                    return;
+                }
+                
+                const sortedData = [...metarData[station]].sort((a, b) => 
+                    a.time.localeCompare(b.time)
+                );
+                
+                sortedData.forEach(d => {
+                    if (d && d.time && (
+                        (element1 && d[element1] !== null && d[element1] !== undefined) ||
+                        (element2 && d[element2] !== null && d[element2] !== undefined)
+                    )) {
+                        labelsSet.add(d.time);
+                    }
+                });
+            });
+
+            const labels = Array.from(labelsSet).sort();
+            const datasets = [];
+
+            // For each station, create a dataset with values aligned to the complete label set
             stations.forEach(station => {
                 if (!metarData[station] || metarData[station].length === 0) {
                     logDebug(`No data for station ${station}`);
@@ -429,58 +443,59 @@
                     a.time.localeCompare(b.time)
                 );
                 
-                const validData = sortedData.filter(d => 
-                    d && d.time && (
+                // Create a map of time -> data for easy lookup
+                const dataMap = new Map();
+                sortedData.forEach(d => {
+                    if (d && d.time && (
                         (element1 && d[element1] !== null && d[element1] !== undefined) ||
                         (element2 && d[element2] !== null && d[element2] !== undefined)
-                    )
-                );
+                    )) {
+                        dataMap.set(d.time, d);
+                    }
+                });
                 
-                logDebug(`Station ${station}: ${sortedData.length} total records, ${validData.length} valid records for selected elements`);
-                
-                if (validData.length === 0) {
-                    logDebug(`No valid data for station ${station} with selected elements`);
-                    return;
-                }
-                
-                validData.forEach(d => labelsSet.add(d.time));
-                
+                // Create dataset for element1
                 if (element1) {
-                    const element1Data = validData.map(d => ({
-                        x: d.time,
-                        y: d[element1]
-                    }));
-                    logDebug(`${station} ${element1} data points: ${JSON.stringify(element1Data)}`);
+                    // Create data array with null values for missing times
+                    const dataValues = labels.map(time => {
+                        const dataPoint = dataMap.get(time);
+                        return dataPoint && dataPoint[element1] !== null && dataPoint[element1] !== undefined ? dataPoint[element1] : null;
+                    });
                     
                     datasets.push({
                         label: `${station} ${element1}`,
-                        data: validData.map(d => d[element1]),
+                        data: dataValues,
                         borderColor: colors[station],
                         backgroundColor: colors[station].replace('1)', '0.2)'),
                         fill: false,
                         yAxisID: element1,
                         pointRadius: 4,
-                        borderWidth: 2
+                        borderWidth: 2,
+                        pointHitRadius: 8,
+                        tension: 0.1
                     });
                 }
                 
+                // Create dataset for element2
                 if (element2 && element2 !== element1) {
-                    const element2Data = validData.map(d => ({
-                        x: d.time,
-                        y: d[element2]
-                    }));
-                    logDebug(`${station} ${element2} data points: ${JSON.stringify(element2Data)}`);
+                    // Create data array with null values for missing times
+                    const dataValues = labels.map(time => {
+                        const dataPoint = dataMap.get(time);
+                        return dataPoint && dataPoint[element2] !== null && dataPoint[element2] !== undefined ? dataPoint[element2] : null;
+                    });
                     
                     datasets.push({
                         label: `${station} ${element2}`,
-                        data: validData.map(d => d[element2]),
+                        data: dataValues,
                         borderColor: colors[station],
                         backgroundColor: colors[station].replace('1)', '0.2)'),
                         borderDash: [5, 5],
                         fill: false,
                         yAxisID: element2,
                         pointRadius: 4,
-                        borderWidth: 2
+                        borderWidth: 2,
+                        pointHitRadius: 8,
+                        tension: 0.1
                     });
                 }
             });
@@ -489,7 +504,6 @@
                 chart.destroy();
             }
 
-            const labels = Array.from(labelsSet).sort();
             logDebug("Final labels for chart: " + JSON.stringify(labels));
             logDebug("Final datasets count: " + datasets.length);
             
