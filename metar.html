@@ -18,7 +18,7 @@
             text-align: center;
         }
         .chart-container {
-            margin-bottom: 60px; /* Increased margin to prevent overlap */
+            margin-bottom: 120px; /* Increased margin to prevent overlap */
             max-height: 600px; /* Increased height for better visibility */
         }
         .controls {
@@ -261,85 +261,85 @@
             if (document.getElementById('zgsz-check').checked) stations.push('ZGSZ');
 
             const datasets = [];
-            const labels = new Set();
+            const labelsSet = new Set();
             const colors = { VHHH: 'blue', VMMC: 'green', ZGSZ: 'red' };
 
-            // Process each selected station
             stations.forEach(station => {
-                const data = metarData[station].filter(d => d && d.time && d[element1] !== null || (element2 && d[element2] !== null)); // Filter valid entries
+                // Ensure metarData[station] exists and is an array
+                if (!Array.isArray(metarData[station])) return;
+
+                // Only push data if the selected element(s) exist
+                const data = metarData[station].filter(d =>
+                    d && d.time && (
+                        (element1 && d[element1] !== null && d[element1] !== undefined) ||
+                        (element2 && d[element2] !== null && d[element2] !== undefined)
+                    )
+                );
                 if (data.length === 0) {
                     console.warn(`No valid METAR data for ${station} with selected elements: ${element1}, ${element2}`);
                     return;
                 }
 
-                // Collect timestamps for labels
-                data.forEach(d => labels.add(d.time));
+                // Collect time labels
+                data.forEach(d => labelsSet.add(d.time));
 
                 // Dataset for element1
                 if (element1) {
-                    const dataset = {
+                    datasets.push({
                         label: `${station} ${element1}`,
-                        data: data.map(d => {
-                            if (element1 === 'windSpeed') return d.windGust || d.windSpeed;
-                            return d[element1];
-                        }),
+                        data: data.map(d => (element1 === 'windSpeed' ? (d.windGust || d.windSpeed) : d[element1])),
                         borderColor: colors[station],
                         fill: false,
                         yAxisID: element1,
                         pointRadius: 3,
                         borderWidth: 2
-                    };
-                    datasets.push(dataset);
+                    });
                 }
-
                 // Dataset for element2
                 if (element2 && element2 !== element1) {
-                    const dataset = {
+                    datasets.push({
                         label: `${station} ${element2}`,
-                        data: data.map(d => {
-                            if (element2 === 'windSpeed') return d.windGust || d.windSpeed;
-                            return d[element2];
-                        }),
-                        borderColor: colors[station] + '80', // Slightly transparent
+                        data: data.map(d => (element2 === 'windSpeed' ? (d.windGust || d.windSpeed) : d[element2])),
+                        borderColor: colors[station] + '80', // Transparent
                         fill: false,
                         yAxisID: element2,
                         pointRadius: 3,
                         borderWidth: 2
-                    };
-                    datasets.push(dataset);
+                    });
                 }
             });
 
-            // Configure scales based on selected elements
+            // Only add axes for selected elements
             const scales = {
-                x: {
-                    title: { display: true, text: 'Time (DDHHMM)' }
-                },
+                x: { title: { display: true, text: 'Time (DDHHMM)' } },
+                // Only add y axes for selected elements
                 y: {}
             };
             const elementScales = {
-                windDir: { min: 0, max: 360, position: 'left', title: { display: true, text: 'Wind Direction (｢X)' } },
+                windDir: { min: 0, max: 360, position: 'left', title: { display: true, text: 'Wind Direction (°)' } },
                 windSpeed: { min: 0, max: 100, position: 'left', title: { display: true, text: 'Wind Speed (kt)' } },
                 qnh: { min: 900, max: 1100, position: 'left', title: { display: true, text: 'QNH (hPa)' } },
-                temp: { min: -10, max: 50, position: 'left', title: { display: true, text: 'Temperature (｢XC)' } },
+                temp: { min: -10, max: 50, position: 'left', title: { display: true, text: 'Temperature (°C)' } },
                 visibility: { min: 0, max: 10000, position: 'right', title: { display: true, text: 'Visibility (m)' } }
             };
 
+            // Only attach axes that are actually used
             if (element1) scales.y[element1] = elementScales[element1];
             if (element2 && element2 !== element1) scales.y[element2] = { ...elementScales[element2], position: 'right' };
 
-            // Destroy existing chart if it exists
+            // Destroy previous chart
             if (chart) {
                 chart.destroy();
                 chart = null;
             }
 
-            // Create new chart only if there are datasets and labels
-            if (datasets.length > 0 && labels.size > 0) {
+            const labels = Array.from(labelsSet).sort();
+
+            if (datasets.length > 0 && labels.length > 0) {
                 chart = new Chart(document.getElementById('metarChart'), {
                     type: 'line',
                     data: {
-                        labels: Array.from(labels).sort(),
+                        labels: labels,
                         datasets: datasets
                     },
                     options: {
@@ -350,13 +350,10 @@
                         },
                         responsive: true,
                         maintainAspectRatio: false,
-                        elements: {
-                            line: { tension: 0.1 } // Smooth lines slightly
-                        }
+                        elements: { line: { tension: 0.1 } }
                     }
                 });
             } else {
-                console.warn('No data to display in chart');
                 // Clear canvas if no data
                 const canvas = document.getElementById('metarChart');
                 const ctx = canvas.getContext('2d');
