@@ -18,8 +18,8 @@
             text-align: center;
         }
         .chart-container {
-            margin-bottom: 40px; /* Increased margin for more space */
-            max-height: 500px; /* Increased height for better visibility */
+            margin-bottom: 60px; /* Increased margin to prevent overlap */
+            max-height: 600px; /* Increased height for better visibility */
         }
         .controls {
             margin-bottom: 20px;
@@ -27,6 +27,11 @@
         }
         .controls label {
             margin-right: 10px;
+        }
+        .controls button {
+            margin-left: 20px;
+            padding: 8px 16px;
+            cursor: pointer;
         }
         .container {
             display: flex;
@@ -86,6 +91,7 @@
             <input type="checkbox" id="vhhh-check" checked onchange="updateChart()"> VHHH
             <input type="checkbox" id="vmmc-check" checked onchange="updateChart()"> VMMC
             <input type="checkbox" id="zgsz-check" checked onchange="updateChart()"> ZGSZ
+            <button onclick="fetchWeatherData()">Refresh Data</button>
         </div>
         <canvas id="metarChart"></canvas>
     </div>
@@ -121,26 +127,39 @@
         function parseMetar(line) {
             const parts = line.split(' ');
             const time = parts[2]?.slice(0, -1) || null; // e.g., "190400Z" -> "190400"
-            let windDir = null, windSpeed = null, windGust = null, qnh = null, temp = null, dewPoint = null, visibility = null;
-
             if (!time) {
-                console.warn(`Invalid METAR line: ${line}`);
+                console.warn(`Invalid METAR line (missing time): ${line}`);
                 return null;
             }
 
+            let windDir = null, windSpeed = null, windGust = null, qnh = null, temp = null, dewPoint = null, visibility = null;
+
             for (let i = 3; i < parts.length; i++) {
-                if (/^\d{3}\d{2}(G\d{2})?KT$/.test(parts[i])) {
-                    windDir = parseInt(parts[i].slice(0, 3));
-                    windSpeed = parseInt(parts[i].slice(3, 5));
+                // Handle wind (e.g., 32015KT, 32015G25KT, or VRB05KT)
+                if (/^(\d{3}|VRB)\d{2}(G\d{2})?KT$/.test(parts[i])) {
+                    windDir = parts[i].startsWith('VRB') ? null : parseInt(parts[i].slice(0, 3));
+                    windSpeed = parseInt(parts[i].match(/\d{2}(?=KT)/)[0]);
                     windGust = parts[i].includes('G') ? parseInt(parts[i].match(/G(\d{2})/)[1]) : null;
-                } else if (/^\d{4,5}$/.test(parts[i])) {
-                    visibility = parseInt(parts[i]);
-                } else if (/^Q\d{4}$/.test(parts[i])) {
-                    qnh = parseInt(parts[i].slice(1));
-                } else if (/^\d{2}\/\d{2}$/.test(parts[i])) {
-                    temp = parseInt(parts[i].split('/')[0]);
-                    dewPoint = parseInt(parts[i].split('/')[1]);
                 }
+                // Handle visibility (e.g., 9999, 2000)
+                else if (/^\d{4,5}$/.test(parts[i])) {
+                    visibility = parseInt(parts[i]);
+                }
+                // Handle QNH (e.g., Q1007)
+                else if (/^Q\d{4}$/.test(parts[i])) {
+                    qnh = parseInt(parts[i].slice(1));
+                }
+                // Handle temperature/dew point (e.g., 30/23)
+                else if (/^(\d{2}|M\d{2})\/(\d{2}|M\d{2})$/.test(parts[i])) {
+                    temp = parts[i].startsWith('M') ? -parseInt(parts[i].slice(1, 3)) : parseInt(parts[i].split('/')[0]);
+                    dewPoint = parts[i].split('/')[1].startsWith('M') ? -parseInt(parts[i].split('/')[1].slice(1)) : parseInt(parts[i].split('/')[1]);
+                }
+            }
+
+            // Log if critical fields are missing
+            if (!windDir && !windSpeed && !qnh && !temp && !visibility) {
+                console.warn(`No valid data parsed from METAR: ${line}`);
+                return null;
             }
 
             return { time, windDir, windSpeed, windGust, qnh, temp, dewPoint, visibility };
@@ -158,6 +177,9 @@
                 }
                 const data = await response.text();
                 
+                // Log raw API response for debugging
+                console.log('Raw API response:', data);
+
                 // Split the response into lines
                 const lines = data.split('\n').filter(line => line.trim() !== '');
                 
@@ -212,6 +234,7 @@
                     const tafText = stations[station].taf.join('\n') || `No TAF data available for ${station}`;
                     document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
                     document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
+                    console.log(`${station} METAR count: ${stations[station].metar.length}, TAF: ${stations[station].taf.length}`);
                 }
 
                 // Update chart with fresh data
@@ -243,9 +266,9 @@
 
             // Process each selected station
             stations.forEach(station => {
-                const data = metarData[station].filter(d => d && d.time); // Filter out invalid entries
+                const data = metarData[station].filter(d => d && d.time && d[element1] !== null || (element2 && d[element2] !== null)); // Filter valid entries
                 if (data.length === 0) {
-                    console.warn(`No valid METAR data for ${station}`);
+                    console.warn(`No valid METAR data for ${station} with selected elements: ${element1}, ${element2}`);
                     return;
                 }
 
@@ -262,7 +285,9 @@
                         }),
                         borderColor: colors[station],
                         fill: false,
-                        yAxisID: element1
+                        yAxisID: element1,
+                        pointRadius: 3,
+                        borderWidth: 2
                     };
                     datasets.push(dataset);
                 }
@@ -277,7 +302,9 @@
                         }),
                         borderColor: colors[station] + '80', // Slightly transparent
                         fill: false,
-                        yAxisID: element2
+                        yAxisID: element2,
+                        pointRadius: 3,
+                        borderWidth: 2
                     };
                     datasets.push(dataset);
                 }
@@ -285,15 +312,17 @@
 
             // Configure scales based on selected elements
             const scales = {
-                x: { title: { display: true, text: 'Time (DDHHMM)' } },
+                x: {
+                    title: { display: true, text: 'Time (DDHHMM)' }
+                },
                 y: {}
             };
             const elementScales = {
                 windDir: { min: 0, max: 360, position: 'left', title: { display: true, text: 'Wind Direction (｢X)' } },
-                windSpeed: { min: 0, position: 'left', title: { display: true, text: 'Wind Speed (kt)' } },
+                windSpeed: { min: 0, max: 100, position: 'left', title: { display: true, text: 'Wind Speed (kt)' } },
                 qnh: { min: 900, max: 1100, position: 'left', title: { display: true, text: 'QNH (hPa)' } },
                 temp: { min: -10, max: 50, position: 'left', title: { display: true, text: 'Temperature (｢XC)' } },
-                visibility: { min: 0, position: 'right', title: { display: true, text: 'Visibility (m)' } }
+                visibility: { min: 0, max: 10000, position: 'right', title: { display: true, text: 'Visibility (m)' } }
             };
 
             if (element1) scales.y[element1] = elementScales[element1];
@@ -320,7 +349,10 @@
                             tooltip: { mode: 'index', intersect: false }
                         },
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        elements: {
+                            line: { tension: 0.1 } // Smooth lines slightly
+                        }
                     }
                 });
             } else {
