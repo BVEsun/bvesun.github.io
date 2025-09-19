@@ -3,17 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VHHH METAR and TAF</title>
+    <title>METAR and TAF for VHHH, VMMC, ZGSZ</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             line-height: 1.6;
         }
         h1 {
             color: #333;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .column {
+            flex: 1;
+            margin: 0 10px;
+        }
+        h2 {
+            color: #333;
+            text-align: center;
         }
         pre {
             background: #f4f4f4;
@@ -21,6 +34,7 @@
             border-radius: 5px;
             white-space: pre-wrap;
             word-wrap: break-word;
+            min-height: 100px;
         }
         .error {
             color: red;
@@ -31,17 +45,36 @@
     </style>
 </head>
 <body>
-    <h1>VHHH METAR and TAF</h1>
-    <h2>METAR</h2>
-    <pre id="metar">Loading METAR data...</pre>
-    <h2>TAF</h2>
-    <pre id="taf">Loading TAF data...</pre>
+    <h1>METAR and TAF for VHHH, VMMC, ZGSZ</h1>
+    <div class="container">
+        <div class="column">
+            <h2>VHHH (Hong Kong)</h2>
+            <h3>METAR</h3>
+            <pre id="metar-vhhh">Loading METAR data...</pre>
+            <h3>TAF</h3>
+            <pre id="taf-vhhh">Loading TAF data...</pre>
+        </div>
+        <div class="column">
+            <h2>VMMC (Macau)</h2>
+            <h3>METAR</h3>
+            <pre id="metar-vmmc">Loading METAR data...</pre>
+            <h3>TAF</h3>
+            <pre id="taf-vmmc">Loading TAF data...</pre>
+        </div>
+        <div class="column">
+            <h2>ZGSZ (Shenzhen)</h2>
+            <h3>METAR</h3>
+            <pre id="metar-zgsz">Loading METAR data...</pre>
+            <h3>TAF</h3>
+            <pre id="taf-zgsz">Loading TAF data...</pre>
+        </div>
+    </div>
 
     <script>
         // Function to fetch and process METAR and TAF data
         async function fetchWeatherData() {
             try {
-                const response = await fetch('https://aviationweather.gov/api/data/metar?ids=VHHH&taf=true&hours=12&format=raw');
+                const response = await fetch('https://aviationweather.gov/api/data/metar?ids=VHHH,VMMC,ZGSZ&taf=true&hours=12&format=raw');
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
@@ -50,46 +83,56 @@
                 // Split the response into lines
                 const lines = data.split('\n').filter(line => line.trim() !== '');
                 
-                // Initialize arrays for METAR and TAF
-                let metarData = [];
-                let tafData = [];
+                // Initialize arrays for each station
+                const stations = {
+                    VHHH: { metar: [], taf: [] },
+                    VMMC: { metar: [], taf: [] },
+                    ZGSZ: { metar: [], taf: [] }
+                };
                 let currentTaf = null;
+                let currentStation = null;
 
                 // Process each line
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
-                    if (line.startsWith('METAR VHHH')) {
+                    if (line.startsWith('METAR VHHH') || line.startsWith('METAR VMMC') || line.startsWith('METAR ZGSZ')) {
                         // Start of a new METAR entry
-                        metarData.push(line);
-                    } else if (line.startsWith('TAF VHHH')) {
+                        const station = line.split(' ')[1];
+                        stations[station].metar.push(line);
+                    } else if (line.startsWith('TAF VHHH') || line.startsWith('TAF VMMC') || line.startsWith('TAF ZGSZ')) {
                         // Start of a new TAF entry
+                        const station = line.split(' ')[1];
                         currentTaf = [line];
-                        // Look ahead to collect all related lines (change groups)
+                        currentStation = station;
+                        // Collect all related lines (change groups)
                         while (i + 1 < lines.length && 
-                               !lines[i + 1].startsWith('METAR VHHH') && 
-                               !lines[i + 1].startsWith('TAF VHHH')) {
+                               !lines[i + 1].startsWith('METAR ') && 
+                               !lines[i + 1].startsWith('TAF ')) {
                             i++;
                             currentTaf.push(lines[i]);
                         }
-                        // Only keep the most recent TAF (first occurrence in the response)
-                        if (tafData.length === 0) {
-                            tafData = currentTaf;
+                        // Only keep the most recent TAF (first occurrence for each station)
+                        if (stations[station].taf.length === 0) {
+                            stations[station].taf = currentTaf;
                         }
                     }
                 }
                 
-                // Join the data with newlines for display
-                const metarText = metarData.join('\n') || 'No METAR data available';
-                const tafText = tafData.join('\n') || 'No TAF data available';
-                
-                // Update DOM
-                document.getElementById('metar').textContent = metarText;
-                document.getElementById('taf').textContent = tafText;
+                // Update DOM for each station
+                for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
+                    const metarText = stations[station].metar.join('\n') || `No METAR data available for ${station}`;
+                    const tafText = stations[station].taf.join('\n') || `No TAF data available for ${station}`;
+                    document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
+                    document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
+                }
             } catch (error) {
-                document.getElementById('metar').classList.add('error');
-                document.getElementById('metar').textContent = `Error fetching METAR: ${error.message}`;
-                document.getElementById('taf').classList.add('error');
-                document.getElementById('taf').textContent = `Error fetching TAF: ${error.message}`;
+                // Update all sections with error message
+                for (const station of ['vhhh', 'vmmc', 'zgsz']) {
+                    document.getElementById(`metar-${station}`).classList.add('error');
+                    document.getElementById(`metar-${station}`).textContent = `Error fetching METAR: ${error.message}`;
+                    document.getElementById(`taf-${station}`).classList.add('error');
+                    document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
+                }
             }
         }
 
