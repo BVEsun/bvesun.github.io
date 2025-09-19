@@ -19,7 +19,6 @@
             margin-bottom: 40px;
         }
         
-        /* SOLUTION FOR ISSUE #3: More space for chart */
         .chart-section {
             margin-bottom: 100px;
             padding: 20px;
@@ -62,6 +61,18 @@
             font-family: monospace;
             white-space: pre-wrap;
         }
+        
+        .debug-console {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
@@ -98,6 +109,10 @@
         <div class="chart-container">
             <canvas id="metarChart"></canvas>
         </div>
+        
+        <div class="debug-console" id="debugConsole">
+            Debug console will show chart data here...
+        </div>
     </div>
     
     <div class="data-section">
@@ -132,9 +147,18 @@
             ZGSZ: []
         };
 
-        // SOLUTION FOR ISSUE #1: Properly configure Chart.js to prevent unused y-axis
+        function logDebug(message) {
+            const debugConsole = document.getElementById('debugConsole');
+            const timestamp = new Date().toLocaleTimeString();
+            debugConsole.innerHTML += `\n[${timestamp}] ${message}`;
+            debugConsole.scrollTop = debugConsole.scrollHeight;
+        }
+
         function createChartConfig(datasets, labels) {
-            // First, determine which y-axes are actually needed
+            logDebug("Creating chart with " + datasets.length + " datasets and " + labels.length + " labels");
+            logDebug("Datasets: " + JSON.stringify(datasets, null, 2));
+            logDebug("Labels: " + JSON.stringify(labels, null, 2));
+            
             const usedAxes = new Set();
             datasets.forEach(ds => {
                 if (ds.yAxisID) {
@@ -142,7 +166,6 @@
                 }
             });
             
-            // Define axis configurations
             const axisConfigs = {
                 windDir: {
                     type: 'linear',
@@ -201,7 +224,6 @@
                 }
             };
             
-            // Build scales configuration
             const scales = {
                 x: {
                     title: {
@@ -211,11 +233,9 @@
                 }
             };
             
-            // Only add y axes if we have datasets that use them
             if (usedAxes.size > 0) {
                 scales.y = {};
                 
-                // Position axes properly (first on left, second on right)
                 let leftAxisAdded = false;
                 let rightAxisAdded = false;
                 
@@ -262,48 +282,39 @@
             };
         }
 
-        // SOLUTION FOR ISSUE #2: Properly parse ZGSZ data with MPS units
         function parseMetar(line) {
-            // Extract station ID
             const stationMatch = line.match(/(VHHH|VMMC|ZGSZ)/);
             if (!stationMatch) return null;
             const station = stationMatch[1];
             
-            // Extract time (6 digits followed by Z)
             const timeMatch = line.match(/\b(\d{6})Z\b/);
             if (!timeMatch) return null;
             const time = timeMatch[1];
             
-            // Wind data - handle both KT and MPS units
             let windDir = null;
             let windSpeed = null;
             let windGust = null;
             
-            // First try KT format (e.g., 32015KT)
             let windMatch = line.match(/\b(\d{3}|VRB)(\d{2})(?:G(\d{2}))?KT\b/);
             if (windMatch) {
                 windDir = windMatch[1] === 'VRB' ? null : parseInt(windMatch[1]);
                 windSpeed = parseInt(windMatch[2]);
                 windGust = windMatch[3] ? parseInt(windMatch[3]) : null;
             } else {
-                // Try MPS format (e.g., 36005MPS) - SOLUTION FOR ZGSZ
                 windMatch = line.match(/\b(\d{3}|VRB)(\d{2})(?:G(\d{2}))?MPS\b/);
                 if (windMatch) {
                     windDir = windMatch[1] === 'VRB' ? null : parseInt(windMatch[1]);
-                    // Convert MPS to KT (1 m/s = 1.94384 knots)
                     windSpeed = Math.round(parseInt(windMatch[2]) * 1.94384);
                     windGust = windMatch[3] ? Math.round(parseInt(windMatch[3]) * 1.94384) : null;
                 }
             }
             
-            // QNH (e.g., Q1007)
             let qnh = null;
             const qnhMatch = line.match(/\bQ(\d{4})\b/);
             if (qnhMatch) {
                 qnh = parseInt(qnhMatch[1]);
             }
             
-            // Temperature (e.g., 30/23)
             let temp = null;
             const tempMatch = line.match(/\b(M?\d{2})\/(M?\d{2})\b/);
             if (tempMatch) {
@@ -312,14 +323,20 @@
                        parseInt(tempMatch[1]);
             }
             
-            // Visibility (4 digits)
             let visibility = null;
-            const visMatch = line.match(/\b(\d{4})\b/);
-            if (visMatch && !visMatch[0].startsWith('Q') && !visMatch[0].includes('Z')) {
-                visibility = parseInt(visMatch[1]);
+            // Look for visibility before QNH and not part of date/time
+            const visMatches = line.match(/\b(\d{4})\b/g);
+            if (visMatches) {
+                for (let match of visMatches) {
+                    // Skip if it's part of the time or QNH
+                    if (!line.includes(match + "Z") && !line.includes("Q" + match)) {
+                        visibility = parseInt(match);
+                        break;
+                    }
+                }
             }
             
-            return {
+            const parsedData = {
                 station: station,
                 time: time,
                 windDir: windDir,
@@ -329,11 +346,14 @@
                 temp: temp,
                 visibility: visibility
             };
+            
+            logDebug("Parsed METAR: " + JSON.stringify(parsedData));
+            return parsedData;
         }
 
         async function fetchWeatherData() {
+            logDebug("Fetching weather data...");
             try {
-                // Clear existing data
                 metarData = { VHHH: [], VMMC: [], ZGSZ: [] };
                 
                 const response = await fetch('https://aviationweather.gov/api/data/metar?ids=VHHH,VMMC,ZGSZ&taf=true&hours=12&format=raw');
@@ -342,7 +362,8 @@
                 const data = await response.text();
                 const lines = data.split('\n').filter(line => line.trim() !== '');
                 
-                // Process all lines
+                logDebug("Raw API response: " + data);
+                
                 for (const line of lines) {
                     if (line.startsWith('METAR') || line.startsWith('SPECI')) {
                         const parsed = parseMetar(line);
@@ -352,7 +373,11 @@
                     }
                 }
                 
-                // Update UI with raw data
+                logDebug("Parsed METAR data by station:");
+                logDebug("VHHH: " + JSON.stringify(metarData.VHHH, null, 2));
+                logDebug("VMMC: " + JSON.stringify(metarData.VMMC, null, 2));
+                logDebug("ZGSZ: " + JSON.stringify(metarData.ZGSZ, null, 2));
+                
                 for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
                     const metarText = lines
                         .filter(line => line.includes(station) && (line.startsWith('METAR') || line.startsWith('SPECI')))
@@ -366,15 +391,10 @@
                     document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
                 }
                 
-                // Debug ZGSZ data
-                console.log("ZGSZ data count:", metarData.ZGSZ.length);
-                if (metarData.ZGSZ.length > 0) {
-                    console.log("Sample ZGSZ data (after parsing):", metarData.ZGSZ[0]);
-                }
-                
                 updateChart();
             } catch (error) {
                 console.error('Error:', error);
+                logDebug('Error: ' + error.message);
                 for (const station of ['vhhh', 'vmmc', 'zgsz']) {
                     document.getElementById(`metar-${station}`).textContent = `Error: ${error.message}`;
                     document.getElementById(`taf-${station}`).textContent = `Error: ${error.message}`;
@@ -383,6 +403,7 @@
         }
 
         function updateChart() {
+            logDebug("Updating chart...");
             const element1 = document.getElementById('element1').value;
             const element2 = document.getElementById('element2').value;
             const stations = [];
@@ -398,18 +419,16 @@
                 ZGSZ: 'rgba(255, 99, 132, 1)'
             };
 
-            // SOLUTION FOR ISSUE #2: Ensure ZGSZ data is properly handled
             stations.forEach(station => {
                 if (!metarData[station] || metarData[station].length === 0) {
+                    logDebug(`No data for station ${station}`);
                     return;
                 }
                 
-                // Sort data by time
                 const sortedData = [...metarData[station]].sort((a, b) => 
                     a.time.localeCompare(b.time)
                 );
                 
-                // Filter valid data points
                 const validData = sortedData.filter(d => 
                     d && d.time && (
                         (element1 && d[element1] !== null && d[element1] !== undefined) ||
@@ -417,18 +436,25 @@
                     )
                 );
                 
+                logDebug(`Station ${station}: ${sortedData.length} total records, ${validData.length} valid records for selected elements`);
+                
                 if (validData.length === 0) {
+                    logDebug(`No valid data for station ${station} with selected elements`);
                     return;
                 }
                 
-                // Collect time labels
                 validData.forEach(d => labelsSet.add(d.time));
                 
-                // Create dataset for element1
                 if (element1) {
+                    const element1Data = validData.map(d => ({
+                        x: d.time,
+                        y: d[element1]
+                    }));
+                    logDebug(`${station} ${element1} data points: ${JSON.stringify(element1Data)}`);
+                    
                     datasets.push({
                         label: `${station} ${element1}`,
-                         validData.map(d => d[element1]),
+                        data: validData.map(d => d[element1]),
                         borderColor: colors[station],
                         backgroundColor: colors[station].replace('1)', '0.2)'),
                         fill: false,
@@ -438,11 +464,16 @@
                     });
                 }
                 
-                // Create dataset for element2
                 if (element2 && element2 !== element1) {
+                    const element2Data = validData.map(d => ({
+                        x: d.time,
+                        y: d[element2]
+                    }));
+                    logDebug(`${station} ${element2} data points: ${JSON.stringify(element2Data)}`);
+                    
                     datasets.push({
                         label: `${station} ${element2}`,
-                         validData.map(d => d[element2]),
+                        data: validData.map(d => d[element2]),
                         borderColor: colors[station],
                         backgroundColor: colors[station].replace('1)', '0.2)'),
                         borderDash: [5, 5],
@@ -454,17 +485,19 @@
                 }
             });
 
-            // Destroy previous chart
             if (chart) {
                 chart.destroy();
             }
 
             const labels = Array.from(labelsSet).sort();
+            logDebug("Final labels for chart: " + JSON.stringify(labels));
+            logDebug("Final datasets count: " + datasets.length);
             
-            // SOLUTION FOR ISSUE #1: Use our precise chart config function
             if (datasets.length > 0 && labels.length > 0) {
                 const config = createChartConfig(datasets, labels);
-                chart = new Chart(document.getElementById('metarChart'), config);
+                const ctx = document.getElementById('metarChart').getContext('2d');
+                chart = new Chart(ctx, config);
+                logDebug("Chart created successfully");
             } else {
                 const canvas = document.getElementById('metarChart');
                 const ctx = canvas.getContext('2d');
@@ -473,10 +506,10 @@
                 ctx.fillStyle = '#666';
                 ctx.textAlign = 'center';
                 ctx.fillText('No data to display - check your selections', canvas.width/2, canvas.height/2);
+                logDebug("No data to display - showing empty message");
             }
         }
 
-        // Initialize
         window.addEventListener('load', fetchWeatherData);
     </script>
 </body>
