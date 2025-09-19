@@ -18,8 +18,8 @@
             text-align: center;
         }
         .chart-container {
-            margin-bottom: 20px;
-            max-height: 400px;
+            margin-bottom: 40px; /* Increased margin for more space */
+            max-height: 500px; /* Increased height for better visibility */
         }
         .controls {
             margin-bottom: 20px;
@@ -120,8 +120,13 @@
         // Function to parse METAR data
         function parseMetar(line) {
             const parts = line.split(' ');
-            const time = parts[2].slice(0, -1); // e.g., "190400Z" -> "190400"
+            const time = parts[2]?.slice(0, -1) || null; // e.g., "190400Z" -> "190400"
             let windDir = null, windSpeed = null, windGust = null, qnh = null, temp = null, dewPoint = null, visibility = null;
+
+            if (!time) {
+                console.warn(`Invalid METAR line: ${line}`);
+                return null;
+            }
 
             for (let i = 3; i < parts.length; i++) {
                 if (/^\d{3}\d{2}(G\d{2})?KT$/.test(parts[i])) {
@@ -171,23 +176,32 @@
                     if (line.startsWith('METAR VHHH') || line.startsWith('METAR VMMC') || line.startsWith('METAR ZGSZ')) {
                         // Start of a new METAR entry
                         const station = line.split(' ')[1];
-                        stations[station].metar.push(line);
-                        metarData[station].push(parseMetar(line));
+                        if (station in stations) {
+                            stations[station].metar.push(line);
+                            const parsed = parseMetar(line);
+                            if (parsed) {
+                                metarData[station].push(parsed);
+                            } else {
+                                console.warn(`Failed to parse METAR for ${station}: ${line}`);
+                            }
+                        }
                     } else if (line.startsWith('TAF VHHH') || line.startsWith('TAF VMMC') || line.startsWith('TAF ZGSZ')) {
                         // Start of a new TAF entry
                         const station = line.split(' ')[1];
-                        currentTaf = [line];
-                        currentStation = station;
-                        // Collect all related lines (change groups)
-                        while (i + 1 < lines.length && 
-                               !lines[i + 1].startsWith('METAR ') && 
-                               !lines[i + 1].startsWith('TAF ')) {
-                            i++;
-                            currentTaf.push(lines[i]);
-                        }
-                        // Only keep the most recent TAF
-                        if (stations[station].taf.length === 0) {
-                            stations[station].taf = currentTaf;
+                        if (station in stations) {
+                            currentTaf = [line];
+                            currentStation = station;
+                            // Collect all related lines (change groups)
+                            while (i + 1 < lines.length && 
+                                   !lines[i + 1].startsWith('METAR ') && 
+                                   !lines[i + 1].startsWith('TAF ')) {
+                                i++;
+                                currentTaf.push(lines[i]);
+                            }
+                            // Only keep the most recent TAF
+                            if (stations[station].taf.length === 0) {
+                                stations[station].taf = currentTaf;
+                            }
                         }
                     }
                 }
@@ -203,6 +217,7 @@
                 // Update chart with fresh data
                 updateChart();
             } catch (error) {
+                console.error('Error fetching data:', error);
                 // Update all sections with error message
                 for (const station of ['vhhh', 'vmmc', 'zgsz']) {
                     document.getElementById(`metar-${station}`).classList.add('error');
@@ -228,8 +243,11 @@
 
             // Process each selected station
             stations.forEach(station => {
-                const data = metarData[station];
-                if (data.length === 0) return;
+                const data = metarData[station].filter(d => d && d.time); // Filter out invalid entries
+                if (data.length === 0) {
+                    console.warn(`No valid METAR data for ${station}`);
+                    return;
+                }
 
                 // Collect timestamps for labels
                 data.forEach(d => labels.add(d.time));
@@ -287,8 +305,8 @@
                 chart = null;
             }
 
-            // Create new chart only if there are datasets
-            if (datasets.length > 0) {
+            // Create new chart only if there are datasets and labels
+            if (datasets.length > 0 && labels.size > 0) {
                 chart = new Chart(document.getElementById('metarChart'), {
                     type: 'line',
                     data: {
@@ -305,6 +323,12 @@
                         maintainAspectRatio: false
                     }
                 });
+            } else {
+                console.warn('No data to display in chart');
+                // Clear canvas if no data
+                const canvas = document.getElementById('metarChart');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
         }
 
