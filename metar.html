@@ -53,6 +53,42 @@
         .loading {
             color: #555;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f4f4f4;
+            border-radius: 5px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .station-header {
+            background-color: #e9e9e9;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -79,6 +115,57 @@
             <h3>TAF</h3>
             <pre id="taf-zgsz">Loading TAF data...</pre>
         </div>
+    </div>
+
+    <div class="controls">
+        <h3>Customize Table Display</h3>
+        <p>Select up to 2 elements to display with DDHHMM:</p>
+        <div class="checkbox-group">
+            <div class="checkbox-item">
+                <input type="checkbox" id="windDir" value="windDir" checked>
+                <label for="windDir">Wind Direction</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="windSpd" value="windSpd" checked>
+                <label for="windSpd">Wind Speed</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="gust" value="gust">
+                <label for="gust">Gust</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="visibility" value="visibility">
+                <label for="visibility">Visibility</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="temp" value="temp">
+                <label for="temp">Temperature</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="dewpoint" value="dewpoint">
+                <label for="dewpoint">Dew Point</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="qnh" value="qnh">
+                <label for="qnh">QNH</label>
+            </div>
+        </div>
+    </div>
+
+    <div id="decodedTable">
+        <h3>Decoded METAR Data</h3>
+        <table id="metarTable">
+            <thead>
+                <tr>
+                    <th>DDHHMM</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="100%">Loading decoded data...</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <script>
@@ -136,6 +223,11 @@
                     document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
                     document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
                 }
+
+                // Parse and decode METAR data
+                const decodedData = parseMETARData(stations);
+                updateTable(decodedData);
+                
             } catch (error) {
                 // Update all sections with error message
                 for (const station of ['vhhh', 'vmmc', 'zgsz']) {
@@ -144,8 +236,225 @@
                     document.getElementById(`taf-${station}`).classList.add('error');
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
+                document.getElementById('metarTable').getElementsByTagName('tbody')[0].innerHTML = 
+                    `<tr><td colspan="100%" class="error">Error loading decoded data: ${error.message}</td></tr>`;
             }
         }
+
+        // Function to parse METAR data
+        function parseMETARData(stations) {
+            const parsedData = {};
+            
+            // Process each station
+            for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
+                parsedData[station] = [];
+                
+                // Process each METAR report for this station
+                for (const metar of stations[station].metar) {
+                    const report = parseSingleMETAR(metar, station);
+                    if (report) {
+                        parsedData[station].push(report);
+                    }
+                }
+            }
+            
+            return parsedData;
+        }
+
+        // Function to parse a single METAR report
+        function parseSingleMETAR(metar, station) {
+            // Extract date/time (DDHHMM)
+            const parts = metar.split(' ');
+            const stationIndex = parts.indexOf(station);
+            if (stationIndex === -1) return null;
+            
+            // Look for date/time in format DDHHMMZ
+            let dateTime = null;
+            for (let i = stationIndex + 1; i < parts.length; i++) {
+                if (/^\d{6}Z$/.test(parts[i])) {
+                    dateTime = parts[i].substring(0, 6);
+                    break;
+                }
+            }
+            
+            if (!dateTime) return null;
+            
+            // Extract wind information (format: DDDSSGSSKT or DDDSSMPS)
+            let windDir = null, windSpd = null, gust = null;
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                // Check for wind in knots (KT) or meters per second (MPS)
+                if (part.match(/^\d{5}(?:G\d{2,3})?(?:KT|MPS)$/)) {
+                    const isMPS = part.includes('MPS');
+                    const ktPart = part.replace('KT', '').replace('MPS', '');
+                    
+                    if (ktPart.includes('G')) {
+                        const [windPart, gustPart] = ktPart.split('G');
+                        windDir = windPart.substring(0, 3);
+                        windSpd = windPart.substring(3);
+                        gust = gustPart;
+                        
+                        // Convert MPS to knots for ZGSZ
+                        if (isMPS && station === 'ZGSZ') {
+                            windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
+                            gust = Math.round(parseFloat(gust) * 1.94384).toString();
+                        }
+                    } else {
+                        windDir = part.substring(0, 3);
+                        windSpd = part.substring(3, 5);
+                        
+                        // Convert MPS to knots for ZGSZ
+                        if (isMPS && station === 'ZGSZ') {
+                            windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            // Extract visibility
+            let visibility = null;
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                // Look for visibility in format like 9999, 5000, 10SM, etc.
+                if (/^\d{4}$/.test(part) || /^\d+SM$/.test(part)) {
+                    visibility = part;
+                    break;
+                }
+            }
+            
+            // Extract temperature and dew point (format: M?TT/M?DD)
+            let temp = null, dewpoint = null;
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                // Look for temperature/dewpoint pattern (e.g., 25/18, M05/M02)
+                if (/^[M]?\d{2}\/[M]?\d{2}$/.test(part)) {
+                    const [tempPart, dewPart] = part.split('/');
+                    temp = tempPart;
+                    dewpoint = dewPart;
+                    break;
+                }
+            }
+            
+            // Extract QNH (format: Q followed by 4 digits or A followed by 4 digits)
+            let qnh = null;
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                if (part.startsWith('Q') && /^\d{4}$/.test(part.substring(1))) {
+                    qnh = part.substring(1); // Remove the Q
+                    break;
+                }
+                // Also check for A (inches of mercury) format
+                if (part.startsWith('A') && /^\d{4}$/.test(part.substring(1))) {
+                    qnh = part; // Keep the A for US format
+                    break;
+                }
+            }
+            
+            return {
+                dateTime,
+                windDir,
+                windSpd,
+                gust,
+                visibility,
+                temp,
+                dewpoint,
+                qnh
+            };
+        }
+
+        // Function to update the table
+        function updateTable(decodedData) {
+            const table = document.getElementById('metarTable');
+            const thead = table.getElementsByTagName('thead')[0];
+            const tbody = table.getElementsByTagName('tbody')[0];
+            
+            // Get selected elements
+            const selectedElements = [];
+            const checkboxes = document.querySelectorAll('.checkbox-group input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                if (selectedElements.length < 2) {
+                    selectedElements.push(checkbox.value);
+                }
+            });
+            
+            // Create table header
+            let headerHTML = '<tr><th>DDHHMM</th>';
+            const stations = ['VHHH', 'VMMC', 'ZGSZ'];
+            const elementLabels = {
+                windDir: 'Wind Dir',
+                windSpd: 'Wind Spd',
+                gust: 'Gust',
+                visibility: 'Visibility',
+                temp: 'Temp',
+                dewpoint: 'Dew Point',
+                qnh: 'QNH'
+            };
+            
+            // Add columns for each selected element for each station
+            selectedElements.forEach(element => {
+                stations.forEach(station => {
+                    headerHTML += `<th>${station} - ${elementLabels[element]}</th>`;
+                });
+            });
+            headerHTML += '</tr>';
+            thead.innerHTML = headerHTML;
+            
+            // Get all unique timestamps
+            const allTimestamps = new Set();
+            stations.forEach(station => {
+                decodedData[station].forEach(report => {
+                    allTimestamps.add(report.dateTime);
+                });
+            });
+            
+            // Sort timestamps (most recent first)
+            const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => b.localeCompare(a));
+            
+            // Create table rows
+            if (sortedTimestamps.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="100%">No decoded data available</td></tr>';
+                return;
+            }
+            
+            let rowsHTML = '';
+            sortedTimestamps.forEach(timestamp => {
+                rowsHTML += `<tr><td class="station-header">${timestamp}</td>`;
+                
+                // For each selected element
+                selectedElements.forEach(element => {
+                    // For each station
+                    stations.forEach(station => {
+                        // Find the report for this timestamp and station
+                        const report = decodedData[station].find(r => r.dateTime === timestamp);
+                        if (report && report[element] !== null) {
+                            rowsHTML += `<td>${report[element]}</td>`;
+                        } else {
+                            rowsHTML += '<td>-</td>';
+                        }
+                    });
+                });
+                rowsHTML += '</tr>';
+            });
+            
+            tbody.innerHTML = rowsHTML;
+        }
+
+        // Add event listeners to checkboxes
+        document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Limit to 2 selections
+                const checked = document.querySelectorAll('.checkbox-group input[type="checkbox"]:checked');
+                if (checked.length > 2) {
+                    this.checked = false;
+                    alert('You can select at most 2 elements to display.');
+                    return;
+                }
+                
+                // Re-update table with new selections
+                fetchWeatherData();
+            });
+        });
 
         // Fetch data on page load
         fetchWeatherData();
