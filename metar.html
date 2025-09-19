@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>METAR and TAF for VHHH, VMMC, ZGSZ</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,6 +17,16 @@
             color: #333;
             text-align: center;
         }
+        .chart-container {
+            margin-bottom: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .controls label {
+            margin-right: 10px;
+        }
         .container {
             display: flex;
             justify-content: space-between;
@@ -26,6 +37,10 @@
         }
         h2 {
             color: #333;
+            text-align: center;
+        }
+        h3 {
+            color: #555;
             text-align: center;
         }
         pre {
@@ -46,6 +61,34 @@
 </head>
 <body>
     <h1>METAR and TAF for VHHH, VMMC, ZGSZ</h1>
+    <div class="chart-container">
+        <h2>METAR Data Chart</h2>
+        <div class="controls">
+            <label>Select Elements (up to 2):</label>
+            <select id="element1" onchange="updateChart()">
+                <option value="">Select Element 1</option>
+                <option value="windDir">Wind Direction (｢X)</option>
+                <option value="windSpeed">Wind Speed (kt)</option>
+                <option value="qnh">QNH (hPa)</option>
+                <option value="temp">Temperature (｢XC)</option>
+                <option value="visibility">Visibility (m)</option>
+            </select>
+            <select id="element2" onchange="updateChart()">
+                <option value="">Select Element 2</option>
+                <option value="windDir">Wind Direction (｢X)</option>
+                <option value="windSpeed">Wind Speed (kt)</option>
+                <option value="qnh">QNH (hPa)</option>
+                <option value="temp">Temperature (｢XC)</option>
+                <option value="visibility">Visibility (m)</option>
+            </select>
+            <br><br>
+            <label>Select Stations:</label>
+            <input type="checkbox" id="vhhh-check" checked onchange="updateChart()"> VHHH
+            <input type="checkbox" id="vmmc-check" checked onchange="updateChart()"> VMMC
+            <input type="checkbox" id="zgsz-check" checked onchange="updateChart()"> ZGSZ
+        </div>
+        <canvas id="metarChart"></canvas>
+    </div>
     <div class="container">
         <div class="column">
             <h2>VHHH (Hong Kong)</h2>
@@ -71,6 +114,33 @@
     </div>
 
     <script>
+        let chart = null;
+        let metarData = { VHHH: [], VMMC: [], ZGSZ: [] };
+
+        // Function to parse METAR data
+        function parseMetar(line) {
+            const parts = line.split(' ');
+            const time = parts[2].slice(0, -1); // e.g., "190400Z" -> "190400"
+            let windDir = null, windSpeed = null, windGust = null, qnh = null, temp = null, dewPoint = null, visibility = null;
+
+            for (let i = 3; i < parts.length; i++) {
+                if (/^\d{3}\d{2}(G\d{2})?KT$/.test(parts[i])) {
+                    windDir = parseInt(parts[i].slice(0, 3));
+                    windSpeed = parseInt(parts[i].slice(3, 5));
+                    windGust = parts[i].includes('G') ? parseInt(parts[i].match(/G(\d{2})/)[1]) : null;
+                } else if (/^\d{4,5}$/.test(parts[i])) {
+                    visibility = parseInt(parts[i]);
+                } else if (/^Q\d{4}$/.test(parts[i])) {
+                    qnh = parseInt(parts[i].slice(1));
+                } else if (/^\d{2}\/\d{2}$/.test(parts[i])) {
+                    temp = parseInt(parts[i].split('/')[0]);
+                    dewPoint = parseInt(parts[i].split('/')[1]);
+                }
+            }
+
+            return { time, windDir, windSpeed, windGust, qnh, temp, dewPoint, visibility };
+        }
+
         // Function to fetch and process METAR and TAF data
         async function fetchWeatherData() {
             try {
@@ -99,6 +169,7 @@
                         // Start of a new METAR entry
                         const station = line.split(' ')[1];
                         stations[station].metar.push(line);
+                        metarData[station].push(parseMetar(line));
                     } else if (line.startsWith('TAF VHHH') || line.startsWith('TAF VMMC') || line.startsWith('TAF ZGSZ')) {
                         // Start of a new TAF entry
                         const station = line.split(' ')[1];
@@ -111,7 +182,7 @@
                             i++;
                             currentTaf.push(lines[i]);
                         }
-                        // Only keep the most recent TAF (first occurrence for each station)
+                        // Only keep the most recent TAF
                         if (stations[station].taf.length === 0) {
                             stations[station].taf = currentTaf;
                         }
@@ -125,6 +196,9 @@
                     document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
                     document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
                 }
+
+                // Initialize chart
+                updateChart();
             } catch (error) {
                 // Update all sections with error message
                 for (const station of ['vhhh', 'vmmc', 'zgsz']) {
@@ -134,6 +208,96 @@
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
             }
+        }
+
+        // Function to update the chart
+        function updateChart() {
+            const element1 = document.getElementById('element1').value;
+            const element2 = document.getElementById('element2').value;
+            const stations = [];
+            if (document.getElementById('vhhh-check').checked) stations.push('VHHH');
+            if (document.getElementById('vmmc-check').checked) stations.push('VMMC');
+            if (document.getElementById('zgsz-check').checked) stations.push('ZGSZ');
+
+            const datasets = [];
+            const labels = new Set();
+            const colors = { VHHH: 'blue', VMMC: 'green', ZGSZ: 'red' };
+
+            // Process each selected station
+            stations.forEach(station => {
+                const data = metarData[station];
+                if (data.length === 0) return;
+
+                // Collect timestamps for labels
+                data.forEach(d => labels.add(d.time));
+
+                // Dataset for element1
+                if (element1) {
+                    const dataset = {
+                        label: `${station} ${element1}`,
+                        data: data.map(d => {
+                            if (element1 === 'windSpeed') return d.windGust || d.windSpeed;
+                            return d[element1];
+                        }),
+                        borderColor: colors[station],
+                        fill: false,
+                        yAxisID: element1
+                    };
+                    datasets.push(dataset);
+                }
+
+                // Dataset for element2
+                if (element2 && element2 !== element1) {
+                    const dataset = {
+                        label: `${station} ${element2}`,
+                        data: data.map(d => {
+                            if (element2 === 'windSpeed') return d.windGust || d.windSpeed;
+                            return d[element2];
+                        }),
+                        borderColor: colors[station] + '80', // Slightly transparent
+                        fill: false,
+                        yAxisID: element2
+                    };
+                    datasets.push(dataset);
+                }
+            });
+
+            // Configure scales based on selected elements
+            const scales = {
+                x: { title: { display: true, text: 'Time (DDHHMM)' } },
+                y: {}
+            };
+            const elementScales = {
+                windDir: { min: 0, max: 360, position: 'left', title: { display: true, text: 'Wind Direction (｢X)' } },
+                windSpeed: { min: 0, position: 'left', title: { display: true, text: 'Wind Speed (kt)' } },
+                qnh: { min: 900, max: 1100, position: 'left', title: { display: true, text: 'QNH (hPa)' } },
+                temp: { min: -10, max: 50, position: 'left', title: { display: true, text: 'Temperature (｢XC)' } },
+                visibility: { min: 0, position: 'right', title: { display: true, text: 'Visibility (m)' } }
+            };
+
+            if (element1) scales.y[element1] = elementScales[element1];
+            if (element2 && element2 !== element1) scales.y[element2] = { ...elementScales[element2], position: 'right' };
+
+            // Destroy existing chart if it exists
+            if (chart) chart.destroy();
+
+            // Create new chart
+            chart = new Chart(document.getElementById('metarChart'), {
+                type: 'line',
+                data: {
+                    labels: Array.from(labels).sort(),
+                    datasets: datasets
+                },
+                options: {
+                    scales: scales,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
         }
 
         // Fetch data on page load
