@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VHHH METAR and TAF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            color: red;
+        }
+        .loading {
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>VHHH METAR and TAF</h1>
+    <h2>METAR</h2>
+    <pre id="metar">Loading METAR data...</pre>
+    <h2>TAF</h2>
+    <pre id="taf">Loading TAF data...</pre>
+
+    <script>
+        // Function to fetch and process METAR and TAF data
+        async function fetchWeatherData() {
+            try {
+                const response = await fetch('https://aviationweather.gov/api/data/metar?ids=VHHH&taf=true&hours=12&format=raw');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.text();
+                
+                // Split the response into lines
+                const lines = data.split('\n');
+                
+                // Filter METAR (lines that don't start with TAF)
+                const metarData = lines.filter(line => !line.startsWith('TAF') && line.trim() !== '').join('\n');
+                // Filter TAF (lines that start with TAF)
+                const tafData = lines.filter(line => line.startsWith('TAF')).join('\n');
+                
+                // Update DOM with data or fallback messages
+                document.getElementById('metar').textContent = metarData || 'No METAR data available';
+                document.getElementById('taf').textContent = tafData || 'No TAF data available';
+            } catch (error) {
+                document.getElementById('metar').classList.add('error');
+                document.getElementById('metar').textContent = `Error fetching METAR: ${error.message}`;
+                document.getElementById('taf').classList.add('error');
+                document.getElementById('taf').textContent = `Error fetching TAF: ${error.message}`;
+            }
+        }
+
+        // Fetch data on page load
+        fetchWeatherData();
+    </script>
+</body>
+</html>
