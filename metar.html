@@ -361,11 +361,11 @@
             if (!dateTime) return null;
             
             // Use comprehensive regex to extract all METAR components
-            const metarRegex = /(?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))?\s+(?:(\d{4}|CAVOK|\d+SM)(?:\s+R(\d{2}[LRC]?\/\d{4}[NDU]?))?)?\s*((?:(?:[+-]?[A-Z]{2,6})(?![A-Z]*\d)\s*)*)\s*((?:(?:[A-Z]{2,3}\d{3}[A-Z]*)\s*)*)\s*(?:[M]?\d{2}\/[M]?\d{2})?\s*(?:Q(\d{4})|A(\d{4}))?/;
+            const metarRegex = /(?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))?\s+(?:(\d{4}|CAVOK|\d+SM)(?:\s+R(\d{2}[LRC]?\/\d{4}[NDU]?))?)?\s*((?:(?:[+-]?[A-Z]{2,6})(?![A-Z]*\d)\s*)*)\s*((?:(?:[A-Z]{2,3}\d{3}[A-Z]*)\s*)*)\s*(?:([M]?\d{2})\/([M]?\d{2}))?\s*(?:(?:Q|A)(\d{4}))?/;
             const match = metar.match(metarRegex);
             
             let windDir = null, windSpd = null, gust = null;
-            let visibility = null, dirVisibility = null, weather = null, temp = null, dewpoint = null, qnh = null;
+            let visibility = null, dirVisibility = null, weather = null, cloud = null, temp = null, dewpoint = null, qnh = null;
             
             // Extract wind information
             if (match && match[2]) {
@@ -419,20 +419,19 @@
                 weather = match[5];
             }
             
-            // Extract temperature and dew point using separate regex
-            const tempRegex = /([M]?\d{2})\/([M]?\d{2})/;
-            const tempMatch = metar.match(tempRegex);
-            if (tempMatch) {
-                temp = tempMatch[1];
-                dewpoint = tempMatch[2];
+            // Extract cloud
+            if (match && match[6]) {
+                cloud = match[6];
             }
+            if (match && match[7]) {
+                temp = match[7]; 
+            if (match && match[8]) {
+                dewpoint = match[8]; 
             
             // Extract QNH
-            if (match && match[6]) {
-                qnh = match[6]; // QNH in hPa
-            } else if (match && match[7]) {
-                qnh = 'A' + match[7]; // Altimeter setting in inches
-            }
+            if (match && match[9]) {
+                qnh = match[9]; // QNH in hPa
+            } 
             
             return {
                 dateTime,
@@ -441,6 +440,7 @@
                 gust,
                 visibility,
                 weather,
+                cloud,
                 dirVisibility,
                 temp,
                 dewpoint,
