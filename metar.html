@@ -319,106 +319,119 @@
             return parsedData;
         }
 
-        // Function to parse a single METAR/SPECI report using regex
+        // Function to parse a single METAR/SPECI report
         function parseSingleMETAR(metar, station) {
-            // Extract date/time (DDHHMM)
-            const dateTimeMatch = metar.match(/\s\d{6}Z\s/);
-            if (!dateTimeMatch) return null;
-            const dateTime = dateTimeMatch[0].trim().replace('Z', '');
-            
-            // Extract wind information (format: DDDSSGSSKT or DDDSSMPS or VRBSSKT)
-            let windDir = null, windSpd = null, gust = null;
-            const windMatch = metar.match(/\s(?:VRB|\d{3})\d{2}(?:G\d{2,3})?(?:KT|MPS)\s/);
-            if (windMatch) {
-                const windStr = windMatch[0].trim();
-                const isMPS = windStr.includes('MPS');
-                
-                if (windStr.startsWith('VRB')) {
-                    windDir = null; // VRB means variable direction
-                    const speedPart = windStr.substring(3).replace('MPS', '').replace('KT', '');
-                    if (speedPart.includes('G')) {
-                        const [speed, gustPart] = speedPart.split('G');
-                        windSpd = speed;
-                        gust = gustPart;
-                    } else {
-                        windSpd = speedPart;
-                    }
-                } else {
-                    // Extract direction (first 3 digits)
-                    windDir = windStr.substring(0, 3);
-                    const rest = windStr.substring(3).replace('MPS', '').replace('KT', '');
-                    if (rest.includes('G')) {
-                        const [speed, gustPart] = rest.split('G');
-                        windSpd = speed;
-                        gust = gustPart;
-                    } else {
-                        windSpd = rest;
-                    }
-                }
-                
-                // Convert MPS to knots for ZGSZ
-                if (isMPS && station === 'ZGSZ') {
-                    windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
-                    if (gust) {
-                        gust = Math.round(parseFloat(gust) * 1.94384).toString();
-                    }
-                }
-            }
-            
-            // Extract visibility (4 digits or directional visibility like 1100N)
-            let visibility = null, dirVisibility = null;
-            const visibilityMatch = metar.match(/\s(?:\d{4}|[0-9]{1,4}[NSEW])\s/);
-            if (visibilityMatch) {
-                const visStr = visibilityMatch[0].trim();
-                if (/^\d{4}$/.test(visStr)) {
-                    visibility = visStr;
-                } else if (/^\d{1,4}[NSEW]$/.test(visStr)) {
-                    dirVisibility = visStr;
-                }
-            }
-            
-            // Extract RVR (Runway Visual Range) - ignore for now as per requirements
-            // Skip everything after TEMPO/BECMG/NOSIG
-            let metarTruncated = metar;
+            // Remove anything after TEMPO/BECMG/NOSIG
             const tempoIndex = metar.indexOf(' TEMPO ');
             const becmgIndex = metar.indexOf(' BECMG ');
-            const nosigIndex = metar.indexOf(' NOSIG ');
+            const nosigIndex = metar.indexOf(' NOSIG');
             
-            if (tempoIndex > 0) metarTruncated = metar.substring(0, tempoIndex);
-            if (becmgIndex > 0 && becmgIndex < metarTruncated.length) metarTruncated = metarTruncated.substring(0, becmgIndex);
-            if (nosigIndex > 0 && nosigIndex < metarTruncated.length) metarTruncated = metarTruncated.substring(0, nosigIndex);
+            let cutoffIndex = -1;
+            if (tempoIndex > 0) cutoffIndex = tempoIndex;
+            if (becmgIndex > 0 && (cutoffIndex === -1 || becmgIndex < cutoffIndex)) cutoffIndex = becmgIndex;
+            if (nosigIndex > 0 && (cutoffIndex === -1 || nosigIndex < cutoffIndex)) cutoffIndex = nosigIndex;
             
-            // Extract weather phenomena (after visibility, before clouds)
-            let weather = null;
-            const weatherRegex = /\s([+-]?(?:RA|SN|TS|FG|BR|HZ|FU|DU|SA|SQ|FC|SS|DS|DZ|GR|GS|IC|PL|SG|VA|PO|SH|MI|BC|DR|BL|PR|FZ)[+-]?[A-Z]*)\s/;
-            const weatherMatch = metarTruncated.match(weatherRegex);
-            if (weatherMatch) {
-                weather = weatherMatch[1];
+            if (cutoffIndex > 0) {
+                metar = metar.substring(0, cutoffIndex);
             }
             
-            // Extract temperature and dew point (format: M?TT/M?DD)
-            let temp = null, dewpoint = null;
-            const tempMatch = metarTruncated.match(/\s[M]?\d{2}\/[M]?\d{2}\s/);
-            if (tempMatch) {
-                const tempStr = tempMatch[0].trim();
-                const [tempPart, dewPart] = tempStr.split('/');
-                temp = tempPart;
-                dewpoint = dewPart;
-            }
+            // Extract date/time (DDHHMM)
+            const parts = metar.split(' ');
+            let stationIndex = -1;
             
-            // Extract QNH (format: Q followed by 4 digits)
-            let qnh = null;
-            const qnhMatch = metarTruncated.match(/\sQ\d{4}\s/);
-            if (qnhMatch) {
-                qnh = qnhMatch[0].trim().substring(1); // Remove the Q
-            }
-            
-            // Also check for A (inches of mercury) format
-            if (!qnh) {
-                const altMatch = metarTruncated.match(/\sA\d{4}\s/);
-                if (altMatch) {
-                    qnh = altMatch[0].trim(); // Keep the A for US format
+            // Find station code (could be after METAR or SPECI)
+            for (let i = 0; i < parts.length; i++) {
+                if (parts[i] === station && (i > 0 && (parts[i-1] === 'METAR' || parts[i-1] === 'SPECI'))) {
+                    stationIndex = i;
+                    break;
                 }
+            }
+            
+            if (stationIndex === -1) return null;
+            
+            // Look for date/time in format DDHHMMZ
+            let dateTime = null;
+            for (let i = stationIndex + 1; i < parts.length; i++) {
+                if (/^\d{6}Z$/.test(parts[i])) {
+                    dateTime = parts[i].substring(0, 6);
+                    break;
+                }
+            }
+            
+            if (!dateTime) return null;
+            
+            // Use comprehensive regex to extract all METAR components
+            const metarRegex = /(?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))?\s+(?:(\d{4}|CAVOK|\d+SM)(?:\s+R(\d{2}[LRC]?\/\d{4}[NDU]?))?)?\s*(?:\+|-)?([A-Z]{2,6})?\s*(?:[M]?\d{2}\/[M]?\d{2})?\s*(?:Q(\d{4})|A(\d{4}))?/;
+            const match = metar.match(metarRegex);
+            
+            let windDir = null, windSpd = null, gust = null;
+            let visibility = null, dirVisibility = null, weather = null, temp = null, dewpoint = null, qnh = null;
+            
+            // Extract wind information
+            if (match && match[2]) {
+                const windPart = match[2];
+                const isMPS = windPart.includes('MPS');
+                
+                if (windPart.includes('G')) {
+                    const [windBase, gustPart] = windPart.replace('KT', '').replace('MPS', '').split('G');
+                    windDir = windBase.substring(0, 3);
+                    windSpd = windBase.substring(3);
+                    gust = gustPart;
+                    
+                    // Handle VRB (variable wind direction)
+                    if (windDir === 'VRB') {
+                        windDir = null; // Set to null for VRB
+                    }
+                    
+                    // Convert MPS to knots for ZGSZ
+                    if (isMPS && station === 'ZGSZ') {
+                        windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
+                        gust = Math.round(parseFloat(gust) * 1.94384).toString();
+                    }
+                } else {
+                    windDir = windPart.substring(0, 3);
+                    windSpd = windPart.substring(3, 5).replace('K', '').replace('T', '').replace('M', '').replace('P', '').replace('S', '');
+                    
+                    // Handle VRB (variable wind direction)
+                    if (windDir === 'VRB') {
+                        windDir = null; // Set to null for VRB
+                    }
+                    
+                    // Convert MPS to knots for ZGSZ
+                    if (isMPS && station === 'ZGSZ') {
+                        windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
+                    }
+                }
+            }
+            
+            // Extract visibility
+            if (match && match[3]) {
+                visibility = match[3];
+            }
+            
+            // Extract directional visibility
+            if (match && match[4]) {
+                dirVisibility = 'R' + match[4];
+            }
+            
+            // Extract weather
+            if (match && match[5]) {
+                weather = match[5];
+            }
+            
+            // Extract temperature and dew point using separate regex
+            const tempRegex = /([M]?\d{2})\/([M]?\d{2})/;
+            const tempMatch = metar.match(tempRegex);
+            if (tempMatch) {
+                temp = tempMatch[1];
+                dewpoint = tempMatch[2];
+            }
+            
+            // Extract QNH
+            if (match && match[6]) {
+                qnh = match[6]; // QNH in hPa
+            } else if (match && match[7]) {
+                qnh = 'A' + match[7]; // Altimeter setting in inches
             }
             
             return {
