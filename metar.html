@@ -365,7 +365,7 @@
             const match = metar.match(metarRegex);
             
             let windDir = null, windSpd = null, gust = null;
-            let visibility = null, dirVisibility = null, weather = null, cloud = null, temp = null, dewpoint = null, qnh = null;
+            let visibility = null, dirVisibility = null, weather = null, cloud = null, temp = null, dewpoint = null, qnh = null; rvr = null;
             
             // Extract wind information
             if (match && match[2]) {
@@ -413,26 +413,29 @@
             if (match && match[5]) {
                 dirVisibility = match[5];
             }
-            
-            // Extract weather
+             
             if (match && match[6]) {
-                weather = match[6];
+                rvr = match[6];
+            }
+            // Extract weather
+            if (match && match[7]) {
+                weather = match[7];
             }
             
             // Extract cloud
-            if (match && match[7]) {
-                cloud = match[7];
-            }
             if (match && match[8]) {
-                temp = match[8]; 
+                cloud = match[8];
             }
             if (match && match[9]) {
-                dewpoint = match[9]; 
+                temp = match[9]; 
+            }
+            if (match && match[10]) {
+                dewpoint = match[10]; 
             }
             
             // Extract QNH
-            if (match && match[10]) {
-                qnh = match[10]; // QNH in hPa
+            if (match && match[11]) {
+                qnh = match[11]; // QNH in hPa
             } 
             
             return {
@@ -441,6 +444,7 @@
                 windSpd,
                 gust,
                 visibility,
+                rvr,
                 weather,
                 cloud,
                 dirVisibility,
