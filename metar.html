@@ -405,34 +405,34 @@
             }
             
             // Extract visibility
-            if (match && match[3]) {
-                visibility = match[3];
+            if (match && match[4]) {
+                visibility = match[4];
             }
             
             // Extract directional visibility
-            if (match && match[4]) {
-                dirVisibility = 'R' + match[4];
+            if (match && match[5]) {
+                dirVisibility = match[5];
             }
             
             // Extract weather
-            if (match && match[5]) {
-                weather = match[5];
+            if (match && match[6]) {
+                weather = match[6];
             }
             
             // Extract cloud
-            if (match && match[6]) {
-                cloud = match[6];
-            }
             if (match && match[7]) {
-                temp = match[7]; 
+                cloud = match[7];
             }
             if (match && match[8]) {
-                dewpoint = match[8]; 
+                temp = match[8]; 
+            }
+            if (match && match[9]) {
+                dewpoint = match[9]; 
             }
             
             // Extract QNH
-            if (match && match[9]) {
-                qnh = match[9]; // QNH in hPa
+            if (match && match[10]) {
+                qnh = match[10]; // QNH in hPa
             } 
             
             return {
