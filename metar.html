@@ -140,13 +140,15 @@
             <div class="select-item">
                 <label for="element1">Element 1:</label>
                 <select id="element1">
-                    <option value="windDir">Wind Direction</option>
-                    <option value="windSpd">Wind Speed</option>
+                    <option value="windDir">Wind Dir</option>
+                    <option value="windSpd">Wind Spd</option>
                     <option value="gust">Gust</option>
                     <option value="visibility">Visibility</option>
+                    <option value="dirVisibility">Dir Visibility</option>
+                    <option value="rvr">RVR</option>
                     <option value="weather">Weather</option>
-                    <option value="dirVisibility">Directional Visibility</option>
-                    <option value="temp">Temperature</option>
+                    <option value="cloud">Cloud</option>
+                    <option value="temp">Temp</option>
                     <option value="dewpoint">Dew Point</option>
                     <option value="qnh">QNH</option>
                 </select>
@@ -154,13 +156,15 @@
             <div class="select-item">
                 <label for="element2">Element 2:</label>
                 <select id="element2">
-                    <option value="windSpd">Wind Speed</option>
-                    <option value="windDir">Wind Direction</option>
+                    <option value="windDir">Wind Dir</option>
+                    <option value="windSpd">Wind Spd</option>
                     <option value="gust">Gust</option>
                     <option value="visibility">Visibility</option>
+                    <option value="dirVisibility">Dir Visibility</option>
+                    <option value="rvr">RVR</option>
                     <option value="weather">Weather</option>
-                    <option value="dirVisibility">Directional Visibility</option>
-                    <option value="temp">Temperature</option>
+                    <option value="cloud">Cloud</option>
+                    <option value="temp">Temp</option>
                     <option value="dewpoint">Dew Point</option>
                     <option value="qnh">QNH</option>
                 </select>
@@ -365,7 +369,7 @@
             const match = metar.match(metarRegex);
             
             let windDir = null, windSpd = null, gust = null;
-            let visibility = null, dirVisibility = null, weather = null, cloud = null, temp = null, dewpoint = null, qnh = null; rvr = null;
+            let visibility = null, dirVisibility = null, weather = null, cloud = null, temp = null, dewpoint = null, qnh = null, rvr = null;
             
             // Extract wind information
             if (match && match[2]) {
@@ -473,8 +477,10 @@
                 windSpd: 'Wind Spd',
                 gust: 'Gust',
                 visibility: 'Visibility',
-                weather: 'Weather',
                 dirVisibility: 'Dir Visibility',
+                rvr: 'RVR',
+                weather: 'Weather',
+                cloud: 'Cloud',
                 temp: 'Temp',
                 dewpoint: 'Dew Point',
                 qnh: 'QNH'
@@ -516,7 +522,7 @@
                     stations.forEach(station => {
                         // Find the report for this timestamp and station
                         const report = decodedData[station].find(r => r.dateTime === timestamp);
-                        if (report && report[element] !== null) {
+                        if (report && report[element] !== null && report[element] !== undefined) {
                             rowsHTML += `<td>${report[element]}</td>`;
                         } else {
                             rowsHTML += '<td>-</td>';
