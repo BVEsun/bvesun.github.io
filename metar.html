@@ -361,7 +361,7 @@
             if (!dateTime) return null;
             
             // Use comprehensive regex to extract all METAR components
-            const metarRegex = (?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))?\s+(?:(\d{4}|CAVOK|\d+SM)(?:\s+R(\d{2}[LRC]?\/\d{4}[NDU]?))?)?\s*((?:(?:[+-]?[A-Z]{2,6})(?![A-Z]*\d)\s*)*)\s*((?:(?:[A-Z]{2,3}\d{3}[A-Z]*)\s*)*)\s*(?:[M]?\d{2}\/[M]?\d{2})?\s*(?:Q(\d{4})|A(\d{4}))?;
+            const metarRegex = /(?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))?\s+(?:(\d{4}|CAVOK|\d+SM)(?:\s+R(\d{2}[LRC]?\/\d{4}[NDU]?))?)?\s*((?:(?:[+-]?[A-Z]{2,6})(?![A-Z]*\d)\s*)*)\s*((?:(?:[A-Z]{2,3}\d{3}[A-Z]*)\s*)*)\s*(?:[M]?\d{2}\/[M]?\d{2})?\s*(?:Q(\d{4})|A(\d{4}))?/;
             const match = metar.match(metarRegex);
             
             let windDir = null, windSpd = null, gust = null;
