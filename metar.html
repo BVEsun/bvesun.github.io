@@ -96,21 +96,21 @@
     <div class="container">
         <div class="column">
             <h2>VHHH (Hong Kong)</h2>
-            <h3>METAR</h3>
+            <h3>METAR/SPECI</h3>
             <pre id="metar-vhhh">Loading METAR data...</pre>
             <h3>TAF</h3>
             <pre id="taf-vhhh">Loading TAF data...</pre>
         </div>
         <div class="column">
             <h2>VMMC (Macau)</h2>
-            <h3>METAR</h3>
+            <h3>METAR/SPECI</h3>
             <pre id="metar-vmmc">Loading METAR data...</pre>
             <h3>TAF</h3>
             <pre id="taf-vmmc">Loading TAF data...</pre>
         </div>
         <div class="column">
             <h2>ZGSZ (Shenzhen)</h2>
-            <h3>METAR</h3>
+            <h3>METAR/SPECI</h3>
             <pre id="metar-zgsz">Loading METAR data...</pre>
             <h3>TAF</h3>
             <pre id="taf-zgsz">Loading TAF data...</pre>
@@ -153,7 +153,7 @@
     </div>
 
     <div id="decodedTable">
-        <h3>Decoded METAR Data</h3>
+        <h3>Decoded METAR/SPECI Data</h3>
         <table id="metarTable">
             <thead>
                 <tr>
@@ -193,10 +193,19 @@
                 // Process each line
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
-                    if (line.startsWith('METAR VHHH') || line.startsWith('METAR VMMC') || line.startsWith('METAR ZGSZ')) {
-                        // Start of a new METAR entry
-                        const station = line.split(' ')[1];
-                        stations[station].metar.push(line);
+                    // Check for METAR or SPECI reports
+                    if ((line.startsWith('METAR VHHH') || line.startsWith('SPECI VHHH')) || 
+                        (line.startsWith('METAR VMMC') || line.startsWith('SPECI VMMC')) || 
+                        (line.startsWith('METAR ZGSZ') || line.startsWith('SPECI ZGSZ'))) {
+                        // Extract station code
+                        const parts = line.split(' ');
+                        let station = null;
+                        if (parts[0] === 'METAR' || parts[0] === 'SPECI') {
+                            station = parts[1];
+                        }
+                        if (station && stations[station]) {
+                            stations[station].metar.push(line);
+                        }
                     } else if (line.startsWith('TAF VHHH') || line.startsWith('TAF VMMC') || line.startsWith('TAF ZGSZ')) {
                         // Start of a new TAF entry
                         const station = line.split(' ')[1];
@@ -205,6 +214,7 @@
                         // Collect all related lines (change groups)
                         while (i + 1 < lines.length && 
                                !lines[i + 1].startsWith('METAR ') && 
+                               !lines[i + 1].startsWith('SPECI ') && 
                                !lines[i + 1].startsWith('TAF ')) {
                             i++;
                             currentTaf.push(lines[i]);
@@ -218,13 +228,20 @@
                 
                 // Update DOM for each station
                 for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
-                    const metarText = stations[station].metar.join('\n') || `No METAR data available for ${station}`;
+                    // Sort METAR/SPECI reports by timestamp (most recent first)
+                    stations[station].metar.sort((a, b) => {
+                        const timeA = extractTimestamp(a);
+                        const timeB = extractTimestamp(b);
+                        return timeB.localeCompare(timeA); // Most recent first
+                    });
+                    
+                    const metarText = stations[station].metar.join('\n') || `No METAR/SPECI data available for ${station}`;
                     const tafText = stations[station].taf.join('\n') || `No TAF data available for ${station}`;
                     document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
                     document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
                 }
 
-                // Parse and decode METAR data
+                // Parse and decode METAR/SPECI data
                 const decodedData = parseMETARData(stations);
                 updateTable(decodedData);
                 
@@ -232,7 +249,7 @@
                 // Update all sections with error message
                 for (const station of ['vhhh', 'vmmc', 'zgsz']) {
                     document.getElementById(`metar-${station}`).classList.add('error');
-                    document.getElementById(`metar-${station}`).textContent = `Error fetching METAR: ${error.message}`;
+                    document.getElementById(`metar-${station}`).textContent = `Error fetching METAR/SPECI: ${error.message}`;
                     document.getElementById(`taf-${station}`).classList.add('error');
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
@@ -241,7 +258,18 @@
             }
         }
 
-        // Function to parse METAR data
+        // Helper function to extract timestamp from METAR/SPECI report
+        function extractTimestamp(report) {
+            const parts = report.split(' ');
+            for (let i = 0; i < parts.length; i++) {
+                if (/^\d{6}Z$/.test(parts[i])) {
+                    return parts[i].substring(0, 6);
+                }
+            }
+            return "000000"; // Default if no timestamp found
+        }
+
+        // Function to parse METAR data (now including SPECI)
         function parseMETARData(stations) {
             const parsedData = {};
             
@@ -249,7 +277,7 @@
             for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
                 parsedData[station] = [];
                 
-                // Process each METAR report for this station
+                // Process each METAR/SPECI report for this station
                 for (const metar of stations[station].metar) {
                     const report = parseSingleMETAR(metar, station);
                     if (report) {
@@ -261,11 +289,20 @@
             return parsedData;
         }
 
-        // Function to parse a single METAR report
+        // Function to parse a single METAR/SPECI report
         function parseSingleMETAR(metar, station) {
             // Extract date/time (DDHHMM)
             const parts = metar.split(' ');
-            const stationIndex = parts.indexOf(station);
+            let stationIndex = -1;
+            
+            // Find station code (could be after METAR or SPECI)
+            for (let i = 0; i < parts.length; i++) {
+                if (parts[i] === station && (i > 0 && (parts[i-1] === 'METAR' || parts[i-1] === 'SPECI'))) {
+                    stationIndex = i;
+                    break;
+                }
+            }
+            
             if (stationIndex === -1) return null;
             
             // Look for date/time in format DDHHMMZ
