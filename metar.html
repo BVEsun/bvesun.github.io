@@ -187,7 +187,7 @@
     <div class="hours-slider-container">
         <h3>Hours of Data to Display</h3>
         <div class="slider-value" id="hoursValue">12 hours</div>
-        <input type="range" min="0" max="5" class="slider" id="hoursSlider">
+        <input type="range" min="0" max="6" class="slider" id="hoursSlider">
         <div>1&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;48</div>
     </div>
 
@@ -417,16 +417,36 @@
                 if (weather) break;
             }
             
-            // Extract directional visibility (e.g., R07/1200N, R25L/0800)
+            // Extract directional visibility (e.g., 1100N, 0800, etc.)
             let dirVisibility = null;
+            // First check for general directional visibility (like 1100N)
             for (let i = 0; i < parts.length; i++) {
                 const part = parts[i];
-                if (part.startsWith('R') && part.includes('/')) {
-                    // Check if it's a runway visibility format
-                    const runwayParts = part.split('/');
-                    if (runwayParts.length === 2 && runwayParts[0].match(/^R\d{2}[LRC]?$/) && /^\d{4}[NDU]?$/.test(runwayParts[1])) {
+                // Check for patterns like 1100N, 0800, 0500D, etc.
+                if (/^\d{4}[NDU]?$/.test(part) && !part.startsWith('Q') && !part.startsWith('A')) {
+                    // Make sure it's not part of runway visibility (which starts with R)
+                    let isRunwayVis = false;
+                    if (i > 0 && parts[i-1].startsWith('R')) {
+                        isRunwayVis = true;
+                    }
+                    if (!isRunwayVis) {
                         dirVisibility = part;
                         break;
+                    }
+                }
+            }
+            
+            // If no general directional visibility found, check for runway visibility
+            if (!dirVisibility) {
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
+                    if (part.startsWith('R') && part.includes('/')) {
+                        // Check if it's a runway visibility format
+                        const runwayParts = part.split('/');
+                        if (runwayParts.length === 2 && runwayParts[0].match(/^R\d{2}[LRC]?$/) && /^\d{4}[NDU]?$/.test(runwayParts[1])) {
+                            dirVisibility = runwayParts[1]; // Use the visibility part after '/'
+                            break;
+                        }
                     }
                 }
             }
