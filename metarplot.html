@@ -448,7 +448,7 @@
                                 value = parseFloat(report.windSpd);
                             } else if (element2 === 'visibilityDir' && report.visibility !== null) {
                                 if (report.visibility === 'CAVOK') {
-                                    value = 10000;
+                                    value = 9999;
                                 } else if (report.visibility.includes('SM')) {
                                     const smValue = parseFloat(report.visibility);
                                     value = smValue * 1609.34;
