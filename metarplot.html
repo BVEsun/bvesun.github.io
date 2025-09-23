@@ -609,7 +609,7 @@
                 ctx.fillStyle = '#333';
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'right';
-                ctx.fillText(leftMin + (leftMax - leftMin) * (i / leftTicks), -10, y + 4);
+                ctx.fillText(Math.round(leftMin + (leftMax - leftMin) * (i / leftTicks), -10, y + 4));
             }
             ctx.stroke();
             
@@ -621,7 +621,7 @@
                 ctx.fillStyle = '#333';
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'left';
-                ctx.fillText(rightMin + (rightMax - rightMin) * (i / leftTicks), width + 10, y + 4);
+                ctx.fillText(Math.round(rightMin + (rightMax - rightMin) * (i / leftTicks), width + 10, y + 4));
             }
             
             // Draw x-axis labels
