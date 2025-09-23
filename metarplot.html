@@ -238,34 +238,27 @@
         // Chart variables
         let chart = null;
         
-        // Function to parse cloud data into lowest and highest cloud base
-        function parseCloudData(cloudStr) {
-            if (!cloudStr) return { lowest: null, highest: null };
+        // Helper function to extract cloud values
+        function extractCloudValues(cloudStr) {
+            if (!cloudStr) return { min: null, max: null };
             
-            // Split the cloud string into individual cloud layers
-            const layers = cloudStr.split(/\s+/);
-            let lowest = null;
-            let highest = null;
+            // Extract all numeric cloud heights (3 digits after cloud cover code)
+            const cloudHeights = [];
+            const regex = /[A-Z]{3}(\d{3})/g;
+            let match;
             
-            // Process each layer to extract cloud base
-            layers.forEach(layer => {
-                // Match patterns like FEW020, SCT030, BKN050, etc.
-                const match = layer.match(/([A-Z]{3})(\d{3})/);
-                if (match) {
-                    const height = parseInt(match[2], 10);
-                    
-                    // Update lowest and highest
-                    if (lowest === null || height < lowest) lowest = height;
-                    if (highest === null || height > highest) highest = height;
-                }
-            });
-            
-            // If only one layer, set both lowest and highest to that value
-            if (lowest !== null && highest === null) {
-                highest = lowest;
+            while ((match = regex.exec(cloudStr)) !== null) {
+                const height = parseInt(match[1]);
+                cloudHeights.push(height);
             }
             
-            return { lowest, highest };
+            if (cloudHeights.length === 0) return { min: null, max: null };
+            
+            // Find min and max cloud heights
+            const minHeight = Math.min(...cloudHeights);
+            const maxHeight = Math.max(...cloudHeights);
+            
+            return { min: minHeight, max: maxHeight };
         }
 
         // Function to parse DDHHMM timestamp to Date object (UTC)
@@ -657,14 +650,14 @@
                 visibilityDir: 'Visibility (meters)',
                 rvr: 'RVR',
                 weather: 'Weather',
-                cloud: 'Cloud Base (hundreds of feet)',
+                cloud: 'Cloud Height (hundreds of feet)',
                 tempDew: 'Temperature (°C)',
                 qnh: 'QNH (hPa)'
             };
             document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
             document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
             // Check if elements are plottable (not text-based)
-            const nonPlottableElements = ['weather', 'rvr']; // Removed 'cloud' from this list
+            const nonPlottableElements = ['weather', 'rvr'];
             const canPlotElement1 = !nonPlottableElements.includes(element1);
             const canPlotElement2 = !nonPlottableElements.includes(element2);
             if (!canPlotElement1 && !canPlotElement2) {
@@ -744,14 +737,13 @@
                                 } else {
                                     value = parseFloat(report.visibility);
                                 }
-                            } else if (element1 === 'cloud' && report.cloud !== null) {
-                                // Parse cloud data to get lowest cloud base
-                                const { lowest } = parseCloudData(report.cloud);
-                                value = lowest;
                             } else if (element1 === 'tempDew' && report.temp !== null) {
                                 value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
                             } else if (element1 === 'qnh' && report.qnh !== null) {
                                 value = parseFloat(report.qnh);
+                            } else if (element1 === 'cloud' && report.cloud !== null) {
+                                const { min } = extractCloudValues(report.cloud);
+                                value = min;
                             }
                             // Convert timestamp to proper Date object for x-axis
                             data.push({x: parseTimestamp(timestamp), y: value});
@@ -760,7 +752,7 @@
                     // Only add if there's data
                     if (data.some(d => d.y !== null)) {
                         datasets.push({
-                            label: `${station} - ${elementLabels[element1].split(' ')[0]}`,
+                            label: `${station} - Lowest Cloud`,
                             data,
                             borderColor: colorMap[station].main,
                             backgroundColor: colorMap[station].main,
@@ -831,20 +823,21 @@
                                 pointRadius: 4
                             });
                         }
-                    } else if (element1 === 'cloud' && canPlotElement1) {
-                        // Add second series for highest cloud base
-                        const highestCloudData = [];
+                    } else if (element1 === 'cloud') {
+                        const cloudData = [];
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.cloud !== null) {
-                                const { highest } = parseCloudData(report.cloud);
-                                highestCloudData.push({x: parseTimestamp(timestamp), y: highest});
+                                const { max } = extractCloudValues(report.cloud);
+                                if (max !== null) {
+                                    cloudData.push({x: parseTimestamp(timestamp), y: max});
+                                }
                             }
                         });
-                        if (highestCloudData.some(d => d.y !== null)) {
+                        if (cloudData.some(d => d.y !== null)) {
                             datasets.push({
                                 label: `${station} - Highest Cloud`,
-                                data: highestCloudData,
+                                data: cloudData,
                                 borderColor: colorMap[station].secondary,
                                 backgroundColor: colorMap[station].secondary,
                                 borderDash: [5, 5],
@@ -877,21 +870,20 @@
                                 } else {
                                     value = parseFloat(report.visibility);
                                 }
-                            } else if (element2 === 'cloud' && report.cloud !== null) {
-                                // Parse cloud data to get lowest cloud base
-                                const { lowest } = parseCloudData(report.cloud);
-                                value = lowest;
                             } else if (element2 === 'tempDew' && report.temp !== null) {
                                 value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
                             } else if (element2 === 'qnh' && report.qnh !== null) {
                                 value = parseFloat(report.qnh);
+                            } else if (element2 === 'cloud' && report.cloud !== null) {
+                                const { min } = extractCloudValues(report.cloud);
+                                value = min;
                             }
                             data.push({x: parseTimestamp(timestamp), y: value});
                         }
                     });
                     if (data.some(d => d.y !== null)) {
                         datasets.push({
-                            label: `${station} - ${elementLabels[element2].split(' ')[0]}`,
+                            label: `${station} - Lowest Cloud`,
                             data,
                             borderColor: colorMap[station].main,
                             backgroundColor: colorMap[station].main,
@@ -962,20 +954,21 @@
                                 pointRadius: 4
                             });
                         }
-                    } else if (element2 === 'cloud' && canPlotElement2) {
-                        // Add second series for highest cloud base
-                        const highestCloudData = [];
+                    } else if (element2 === 'cloud') {
+                        const cloudData = [];
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.cloud !== null) {
-                                const { highest } = parseCloudData(report.cloud);
-                                highestCloudData.push({x: parseTimestamp(timestamp), y: highest});
+                                const { max } = extractCloudValues(report.cloud);
+                                if (max !== null) {
+                                    cloudData.push({x: parseTimestamp(timestamp), y: max});
+                                }
                             }
                         });
-                        if (highestCloudData.some(d => d.y !== null)) {
+                        if (cloudData.some(d => d.y !== null)) {
                             datasets.push({
                                 label: `${station} - Highest Cloud`,
-                                data: highestCloudData,
+                                data: cloudData,
                                 borderColor: colorMap[station].secondary,
                                 backgroundColor: colorMap[station].secondary,
                                 borderDash: [5, 5],
