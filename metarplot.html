@@ -657,8 +657,9 @@
             ctx.lineTo(width, height); // right y-axis
             ctx.stroke();
             
-            // Draw data series
+            // Draw data series - FIXED PART: First draw lines, then draw points
             series.forEach(serie => {
+                // First draw the line
                 ctx.beginPath();
                 let firstPoint = true;
                 
@@ -679,12 +680,6 @@
                         } else {
                             ctx.lineTo(x, y);
                         }
-                        
-                        // Draw point
-                        ctx.fillStyle = serie.color;
-                        ctx.beginPath();
-                        ctx.arc(x, y, 4, 0, 2 * Math.PI);
-                        ctx.fill();
                     } else {
                         firstPoint = true; // Break line at null values
                     }
@@ -701,6 +696,25 @@
                 
                 ctx.stroke();
                 ctx.setLineDash([]);
+                
+                // Then draw the points
+                serie.data.forEach((point, index) => {
+                    if (point.y !== null) {
+                        const x = (index / (sortedTimestamps.length - 1)) * width;
+                        let y;
+                        
+                        if (serie.yAxis === 'left') {
+                            y = height - ((point.y - leftMin) / (leftMax - leftMin)) * height;
+                        } else {
+                            y = height - ((point.y - rightMin) / (rightMax - rightMin)) * height;
+                        }
+                        
+                        ctx.fillStyle = serie.color;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                });
             });
             
             // Draw legend
