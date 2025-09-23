@@ -340,7 +340,7 @@
                             } else if (element1 === 'visibilityDir' && report.visibility !== null) {
                                 // Handle CAVOK and other special visibility values
                                 if (report.visibility === 'CAVOK') {
-                                    value = 10000; // CAVOK means >10km
+                                    value = 9999; // CAVOK means >10km, same as 9999
                                 } else if (report.visibility.includes('SM')) {
                                     // Convert statute miles to meters (approx)
                                     const smValue = parseFloat(report.visibility);
