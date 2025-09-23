@@ -657,15 +657,17 @@
             ctx.lineTo(width, height); // right y-axis
             ctx.stroke();
             
-            // Draw data series - FIXED PART: First draw lines, then draw points
+            // Draw data series - CORRECTED PART: Connect only valid points
             series.forEach(serie => {
-                // First draw the line
+                // First draw the line connecting only valid points
                 ctx.beginPath();
-                let firstPoint = true;
+                let lastValidX = null;
+                let lastValidY = null;
                 
-                serie.data.forEach((point, index) => {
+                for (let i = 0; i < serie.data.length; i++) {
+                    const point = serie.data[i];
                     if (point.y !== null) {
-                        const x = (index / (sortedTimestamps.length - 1)) * width;
+                        const x = (i / (sortedTimestamps.length - 1)) * width;
                         let y;
                         
                         if (serie.yAxis === 'left') {
@@ -674,16 +676,16 @@
                             y = height - ((point.y - rightMin) / (rightMax - rightMin)) * height;
                         }
                         
-                        if (firstPoint) {
-                            ctx.moveTo(x, y);
-                            firstPoint = false;
-                        } else {
+                        if (lastValidX !== null && lastValidY !== null) {
+                            // Draw line from last valid point to current point
+                            ctx.moveTo(lastValidX, lastValidY);
                             ctx.lineTo(x, y);
                         }
-                    } else {
-                        firstPoint = true; // Break line at null values
+                        
+                        lastValidX = x;
+                        lastValidY = y;
                     }
-                });
+                }
                 
                 ctx.strokeStyle = serie.color;
                 ctx.lineWidth = 2;
@@ -842,7 +844,7 @@
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
                 document.getElementById('metarTable').getElementsByTagName('tbody')[0].innerHTML = 
-                    `<tr><td colspan="100%" class="error">Error loading decoded data: ${error.message}</td></tr>`;
+                    `<tr><td colspan="100%" class="error">Error loading decoded  ${error.message}</td></tr>`;
                 
                 // Draw error on chart
                 initChart();
