@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>METAR and TAF for VHHH, VMMC, ZGSZ</title>
-    <!-- Add Chart.js library -->
+    <!-- Add Chart.js library and date-fns adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -237,6 +238,38 @@
         // Chart variables
         let chart = null;
         
+        // Function to parse DDHHMM timestamp to Date object (UTC)
+        function parseTimestamp(timestamp) {
+            const now = new Date();
+            const currentUTCDate = now.getUTCDate();
+            const currentUTCMonth = now.getUTCMonth();
+            const currentUTCYear = now.getUTCFullYear();
+            
+            const day = parseInt(timestamp.substring(0, 2));
+            const hour = parseInt(timestamp.substring(2, 4));
+            const minute = parseInt(timestamp.substring(4, 6));
+            
+            // Create a UTC date
+            let date = new Date(Date.UTC(currentUTCYear, currentUTCMonth, day, hour, minute));
+            
+            // Check if this date is reasonable (within the last 48 hours of current UTC time)
+            const timeDiff = now - date;
+            const hoursDiff = timeDiff / (1000 * 60 * 60);
+            
+            // If the date is more than 48 hours in the future, it's from previous month
+            if (hoursDiff < -48) {
+                date = new Date(Date.UTC(currentUTCYear, (currentUTCMonth + 1) % 12, day, hour, minute));
+                if (currentUTCMonth === 11) date.setUTCFullYear(currentUTCYear + 1);
+            } 
+            // If the date is more than 48 hours in the past, it's from previous month
+            else if (hoursDiff > 48 * 7) { // Allow up to a week of data
+                date = new Date(Date.UTC(currentUTCYear, (currentUTCMonth - 1 + 12) % 12, day, hour, minute));
+                if (currentUTCMonth === 0) date.setUTCFullYear(currentUTCYear - 1);
+            }
+            
+            return date;
+        }
+        
         // Function to fetch and process METAR and TAF data
         async function fetchWeatherData() {
             try {
@@ -318,7 +351,7 @@
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
                 document.getElementById('metarTable').getElementsByTagName('tbody')[0].innerHTML = 
-                    `<tr><td colspan="100%" class="error">Error loading decoded data: ${error.message}</td></tr>`;
+                    `<tr><td colspan="100%" class="error">Error loading decoded  ${error.message}</td></tr>`;
                 // Draw error on chart
                 if (chart) {
                     chart.destroy();
@@ -587,7 +620,7 @@
             });
         }
         
-        // CHART.JS IMPLEMENTATION - REPLACED THE CUSTOM CHART DRAWING CODE
+        // CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
         function drawChart(decodedData) {
             if (!decodedData) return;
             
@@ -706,7 +739,8 @@
                             } else if (element1 === 'qnh' && report.qnh !== null) {
                                 value = parseFloat(report.qnh);
                             }
-                            data.push({x: timestamp, y: value});
+                            // Convert timestamp to proper Date object for x-axis
+                            data.push({x: parseTimestamp(timestamp), y: value});
                         }
                     });
                     
@@ -714,7 +748,7 @@
                     if (data.some(d => d.y !== null)) {
                         datasets.push({
                             label: `${station} - ${elementLabels[element1].split(' ')[0]}`,
-                            data: data,
+                            data,
                             borderColor: colorMap[station].main,
                             backgroundColor: colorMap[station].main,
                             yAxisID: 'left-y-axis',
@@ -729,7 +763,7 @@
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.gust !== null) {
-                                gustData.push({x: timestamp, y: parseFloat(report.gust)});
+                                gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
                             }
                         });
                         if (gustData.some(d => d.y !== null)) {
@@ -749,7 +783,7 @@
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.dewpoint !== null) {
-                                dewData.push({x: timestamp, y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
+                                dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
                             }
                         });
                         if (dewData.some(d => d.y !== null)) {
@@ -770,7 +804,7 @@
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.dirVisibility !== null) {
                                 const dirValue = parseFloat(report.dirVisibility);
-                                dirVisData.push({x: timestamp, y: dirValue});
+                                dirVisData.push({x: parseTimestamp(timestamp), y: dirValue});
                             }
                         });
                         if (dirVisData.some(d => d.y !== null)) {
@@ -815,14 +849,14 @@
                             } else if (element2 === 'qnh' && report.qnh !== null) {
                                 value = parseFloat(report.qnh);
                             }
-                            data.push({x: timestamp, y: value});
+                            data.push({x: parseTimestamp(timestamp), y: value});
                         }
                     });
                     
                     if (data.some(d => d.y !== null)) {
                         datasets.push({
                             label: `${station} - ${elementLabels[element2].split(' ')[0]}`,
-                            data: data,
+                            data,
                             borderColor: colorMap[station].main,
                             backgroundColor: colorMap[station].main,
                             yAxisID: 'right-y-axis',
@@ -837,7 +871,7 @@
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.gust !== null) {
-                                gustData.push({x: timestamp, y: parseFloat(report.gust)});
+                                gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
                             }
                         });
                         if (gustData.some(d => d.y !== null)) {
@@ -857,7 +891,7 @@
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.dewpoint !== null) {
-                                dewData.push({x: timestamp, y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
+                                dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
                             }
                         });
                         if (dewData.some(d => d.y !== null)) {
@@ -878,7 +912,7 @@
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.dirVisibility !== null) {
                                 const dirValue = parseFloat(report.dirVisibility);
-                                dirVisData.push({x: timestamp, y: dirValue});
+                                dirVisData.push({x: parseTimestamp(timestamp), y: dirValue});
                             }
                         });
                         if (dirVisData.some(d => d.y !== null)) {
@@ -917,7 +951,7 @@
                 chart.destroy();
             }
             
-            // Create new chart
+            // Create new chart with time-based x-axis
             chart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -932,11 +966,17 @@
                     },
                     scales: {
                         x: {
-                            type: 'category',
-                            labels: sortedTimestamps,
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'DD HH:mm'
+                                },
+                                tooltipFormat: 'MMM dd, HH:mm'
+                            },
                             title: {
                                 display: true,
-                                text: 'Time (DDHHMM)'
+                                text: 'Time (UTC)'
                             }
                         },
                         'left-y-axis': {
@@ -966,6 +1006,16 @@
                         title: {
                             display: true,
                             text: 'METAR Data Visualization'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const date = new Date(tooltipItems[0].parsed.x);
+                                    return date.getUTCDate().toString().padStart(2, '0') + 
+                                           (date.getUTCHours()).toString().padStart(2, '0') + 
+                                           (date.getUTCMinutes()).toString().padStart(2, '0') + 'Z';
+                                }
+                            }
                         }
                     }
                 }
