@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>METAR and TAF for VHHH, VMMC, ZGSZ</title>
+    <!-- Add Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -138,7 +140,7 @@
             transform: rotate(90deg) translateY(-50%);
             transform-origin: right center;
         }
-        canvas {
+        #chart {
             width: 100%;
             height: 100%;
         }
@@ -169,7 +171,6 @@
             <pre id="taf-zgsz">Loading TAF data...</pre>
         </div>
     </div>
-
     <div class="controls">
         <h3>Customize Table Display</h3>
         <p>Select 2 elements to display with DDHHMM:</p>
@@ -202,7 +203,6 @@
             </div>
         </div>
     </div>
-
     <div id="decodedTable">
         <h3>Decoded METAR/SPECI Data</h3>
         <table id="metarTable">
@@ -218,558 +218,37 @@
             </tbody>
         </table>
     </div>
-
     <div id="chartContainer">
         <div class="chart-title">METAR Data Visualization</div>
         <div class="y-axis-label left-y-axis-label" id="leftAxisLabel">Element 1</div>
         <div class="y-axis-label right-y-axis-label" id="rightAxisLabel">Element 2</div>
         <canvas id="chart"></canvas>
     </div>
-
     <div class="hours-slider-container">
         <h3>Hours of Data to Display</h3>
         <div class="slider-value" id="hoursValue">12 hours</div>
         <input type="range" min="0" max="6" class="slider" id="hoursSlider">
         <div>1&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;48</div>
     </div>
-
     <script>
         // Get hours from localStorage or default to 12
         let selectedHours = localStorage.getItem('metarHours') || '12';
         const hoursOptions = ['1', '2', '3', '6', '12', '24', '48'];
-        
         // Chart variables
         let chart = null;
-        let ctx = null;
         
-        // Initialize chart
-        function initChart() {
-            const canvas = document.getElementById('chart');
-            ctx = canvas.getContext('2d');
-            
-            // Set canvas dimensions
-            const container = document.getElementById('chartContainer');
-            canvas.width = container.clientWidth - 30;
-            canvas.height = container.clientHeight - 60;
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        
-        // Draw chart
-        function drawChart(decodedData) {
-            if (!decodedData) return;
-            
-            initChart();
-            if (!ctx) return;
-            
-            const canvas = document.getElementById('chart');
-            const element1 = document.getElementById('element1').value;
-            const element2 = document.getElementById('element2').value;
-            
-            // Update axis labels
-            const elementLabels = {
-                windDir: 'Wind Direction (°)',
-                windSpdGust: 'Wind Speed/Gust (knots)',
-                visibilityDir: 'Visibility (meters)',
-                rvr: 'RVR',
-                weather: 'Weather',
-                cloud: 'Cloud',
-                tempDew: 'Temperature (°C)',
-                qnh: 'QNH (hPa)'
-            };
-            
-            document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
-            document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
-            
-            // Check if elements are plottable (not text-based)
-            const nonPlottableElements = ['weather', 'cloud', 'rvr'];
-            const canPlotElement1 = !nonPlottableElements.includes(element1);
-            const canPlotElement2 = !nonPlottableElements.includes(element2);
-            
-            if (!canPlotElement1 && !canPlotElement2) {
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#666';
-                ctx.textAlign = 'center';
-                ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-            
-            // Get all timestamps across all stations
-            const allTimestamps = new Set();
-            const stations = ['VHHH', 'VMMC', 'ZGSZ'];
-            
-            stations.forEach(station => {
-                if (decodedData[station]) {
-                    decodedData[station].forEach(report => {
-                        allTimestamps.add(report.dateTime);
-                    });
-                }
-            });
-            
-            // Sort timestamps (oldest to newest for x-axis)
-            const sortedTimestamps = Array.from(allTimestamps).sort();
-            if (sortedTimestamps.length === 0) {
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#666';
-                ctx.textAlign = 'center';
-                ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-            
-            // Define chart margins
-            const margin = { top: 40, right: 60, bottom: 60, left: 60 };
-            const width = canvas.width - margin.left - margin.right;
-            const height = canvas.height - margin.top - margin.bottom;
-            
-            // Create data series for plotting
-            const series = [];
-            
-            // Process Element 1
-            if (canPlotElement1) {
-                stations.forEach(station => {
-                    const data = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report) {
-                            let value = null;
-                            if (element1 === 'windDir' && report.windDir !== null) {
-                                value = parseFloat(report.windDir);
-                            } else if (element1 === 'windSpdGust' && report.windSpd !== null) {
-                                value = parseFloat(report.windSpd);
-                            } else if (element1 === 'visibilityDir' && report.visibility !== null) {
-                                // Handle CAVOK and other special visibility values
-                                if (report.visibility === 'CAVOK') {
-                                    value = 9999; // CAVOK means >10km, same as 9999
-                                } else if (report.visibility.includes('SM')) {
-                                    // Convert statute miles to meters (approx)
-                                    const smValue = parseFloat(report.visibility);
-                                    value = smValue * 1609.34;
-                                } else {
-                                    value = parseFloat(report.visibility);
-                                }
-                            } else if (element1 === 'tempDew' && report.temp !== null) {
-                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
-                            } else if (element1 === 'qnh' && report.qnh !== null) {
-                                value = parseFloat(report.qnh);
-                            }
-                            data.push({ x: timestamp, y: value });
-                        } else {
-                            data.push({ x: timestamp, y: null });
-                        }
-                    });
-                    
-                    if (data.some(d => d.y !== null)) {
-                        series.push({
-                            name: `${station} - ${elementLabels[element1].split(' ')[0]}`,
-                            data: data,
-                            color: station === 'VHHH' ? '#3366cc' : station === 'VMMC' ? '#dc3912' : '#ff9900',
-                            yAxis: 'left'
-                        });
-                    }
-                    
-                    // Add second series for combined elements
-                    if (element1 === 'windSpdGust') {
-                        const gustData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.gust !== null) {
-                                gustData.push({ x: timestamp, y: parseFloat(report.gust) });
-                            } else {
-                                gustData.push({ x: timestamp, y: null });
-                            }
-                        });
-                        
-                        if (gustData.some(d => d.y !== null)) {
-                            series.push({
-                                name: `${station} - Gust`,
-                                data: gustData,
-                                color: station === 'VHHH' ? '#3366cc' : station === 'VMMC' ? '#dc3912' : '#ff9900',
-                                yAxis: 'left',
-                                dash: true
-                            });
-                        }
-                    } else if (element1 === 'tempDew') {
-                        const dewData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dewpoint !== null) {
-                                dewData.push({ x: timestamp, y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint) });
-                            } else {
-                                dewData.push({ x: timestamp, y: null });
-                            }
-                        });
-                        
-                        if (dewData.some(d => d.y !== null)) {
-                            series.push({
-                                name: `${station} - Dew Point`,
-                                data: dewData,
-                                color: station === 'VHHH' ? '#3366cc' : station === 'VMMC' ? '#dc3912' : '#ff9900',
-                                yAxis: 'left',
-                                dash: true
-                            });
-                        }
-                    } else if (element1 === 'visibilityDir' && canPlotElement1) {
-                        const dirVisData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dirVisibility !== null) {
-                                const dirValue = parseFloat(report.dirVisibility);
-                                dirVisData.push({ x: timestamp, y: dirValue });
-                            } else {
-                                dirVisData.push({ x: timestamp, y: null });
-                            }
-                        });
-                        
-                        if (dirVisData.some(d => d.y !== null)) {
-                            series.push({
-                                name: `${station} - Dir Visibility`,
-                                data: dirVisData,
-                                color: station === 'VHHH' ? '#3366cc' : station === 'VMMC' ? '#dc3912' : '#ff9900',
-                                yAxis: 'left',
-                                dash: true
-                            });
-                        }
-                    }
-                });
-            }
-            
-            // Process Element 2
-            if (canPlotElement2) {
-                stations.forEach(station => {
-                    const data = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report) {
-                            let value = null;
-                            if (element2 === 'windDir' && report.windDir !== null) {
-                                value = parseFloat(report.windDir);
-                            } else if (element2 === 'windSpdGust' && report.windSpd !== null) {
-                                value = parseFloat(report.windSpd);
-                            } else if (element2 === 'visibilityDir' && report.visibility !== null) {
-                                if (report.visibility === 'CAVOK') {
-                                    value = 9999;
-                                } else if (report.visibility.includes('SM')) {
-                                    const smValue = parseFloat(report.visibility);
-                                    value = smValue * 1609.34;
-                                } else {
-                                    value = parseFloat(report.visibility);
-                                }
-                            } else if (element2 === 'tempDew' && report.temp !== null) {
-                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
-                            } else if (element2 === 'qnh' && report.qnh !== null) {
-                                value = parseFloat(report.qnh);
-                            }
-                            data.push({ x: timestamp, y: value });
-                        } else {
-                            data.push({ x: timestamp, y: null });
-                        }
-                    });
-                    
-                    if (data.some(d => d.y !== null)) {
-                        series.push({
-                            name: `${station} - ${elementLabels[element2].split(' ')[0]}`,
-                            data: data,
-                            color: station === 'VHHH' ? '#109618' : station === 'VMMC' ? '#990099' : '#0099c6',
-                            yAxis: 'right'
-                        });
-                    }
-                    
-                    // Add second series for combined elements
-                    if (element2 === 'windSpdGust') {
-                        const gustData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.gust !== null) {
-                                gustData.push({ x: timestamp, y: parseFloat(report.gust) });
-                            } else {
-                                gustData.push({ x: timestamp, y: null });
-                            }
-                        });
-                        
-                        if (gustData.some(d => d.y !== null)) {
-                            series.push({
-                                name: `${station} - Gust`,
-                                data: gustData,
-                                color: station === 'VHHH' ? '#109618' : station === 'VMMC' ? '#990099' : '#0099c6',
-                                yAxis: 'right',
-                                dash: true
-                            });
-                        }
-                    } else if (element2 === 'tempDew') {
-                        const dewData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dewpoint !== null) {
-                                dewData.push({ x: timestamp, y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint) });
-                            } else {
-                                dewData.push({ x: timestamp, y: null });
-                            }
-                        });
-                        
-                        if (dewData.some(d => d.y !== null)) {
-                            series.push({
-                                name: `${station} - Dew Point`,
-                                data: dewData,
-                                color: station === 'VHHH' ? '#109618' : station === 'VMMC' ? '#990099' : '#0099c6',
-                                yAxis: 'right',
-                                dash: true
-                            });
-                        }
-                    } else if (element2 === 'visibilityDir' && canPlotElement2) {
-                        const dirVisData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dirVisibility !== null) {
-                                const dirValue = parseFloat(report.dirVisibility);
-                                dirVisData.push({ x: timestamp, y: dirValue });
-                            } else {
-                                dirVisData.push({ x: timestamp, y: null });
-                            }
-                        });
-                        
-                        if (dirVisData.some(d => d.y !== null)) {
-                            series.push({
-                                name: `${station} - Dir Visibility`,
-                                data: dirVisData,
-                                color: station === 'VHHH' ? '#109618' : station === 'VMMC' ? '#990099' : '#0099c6',
-                                yAxis: 'right',
-                                dash: true
-                            });
-                        }
-                    }
-                });
-            }
-            
-            if (series.length === 0) {
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#666';
-                ctx.textAlign = 'center';
-                ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-            
-            // Calculate min/max for y-axes
-            let leftMin = Infinity, leftMax = -Infinity;
-            let rightMin = Infinity, rightMax = -Infinity;
-            
-            series.forEach(serie => {
-                serie.data.forEach(point => {
-                    if (point.y !== null) {
-                        if (serie.yAxis === 'left') {
-                            leftMin = Math.min(leftMin, point.y);
-                            leftMax = Math.max(leftMax, point.y);
-                        } else {
-                            rightMin = Math.min(rightMin, point.y);
-                            rightMax = Math.max(rightMax, point.y);
-                        }
-                    }
-                });
-            });
-            
-            // Add padding to y-axes
-            if (leftMin !== Infinity) {
-                const leftRange = leftMax - leftMin;
-                leftMin -= leftRange * 0.1;
-                leftMax += leftRange * 0.1;
-            }
-            
-            if (rightMin !== Infinity) {
-                const rightRange = rightMax - rightMin;
-                rightMin -= rightRange * 0.1;
-                rightMax += rightRange * 0.1;
-            }
-            
-            // If no data for an axis, set default range
-            if (leftMin === Infinity) {
-                leftMin = 0;
-                leftMax = 100;
-            }
-            if (rightMin === Infinity) {
-                rightMin = 0;
-                rightMax = 100;
-            }
-            
-            // Draw axes
-            ctx.save();
-            ctx.translate(margin.left, margin.top);
-            
-            // Draw grid lines and y-axis labels for left axis
-            ctx.beginPath();
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.lineWidth = 1;
-            
-            const leftTicks = 5;
-            for (let i = 0; i <= leftTicks; i++) {
-                const y = height - (i / leftTicks) * height;
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
-                
-                // Draw y-axis labels for left axis
-                ctx.fillStyle = '#333';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'right';
-                ctx.fillText(Math.round(leftMin + (leftMax - leftMin) * (i / leftTicks)), -10, y + 4);
-            }
-            ctx.stroke();
-            
-            // Draw grid lines and y-axis labels for right axis
-            ctx.beginPath();
-            for (let i = 0; i <= leftTicks; i++) {
-                const y = height - (i / leftTicks) * height;
-                // Don't redraw horizontal lines, just add right axis labels
-                ctx.fillStyle = '#333';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText(Math.round(rightMin + (rightMax - rightMin) * (i / leftTicks)), width + 10, y + 4);
-            }
-            
-            // Draw x-axis labels
-            ctx.fillStyle = '#333';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            
-            const xTicks = Math.min(sortedTimestamps.length, 10);
-            for (let i = 0; i < xTicks; i++) {
-                const index = Math.floor((sortedTimestamps.length - 1) * (i / (xTicks - 1)));
-                const timestamp = sortedTimestamps[index];
-                const x = (i / (xTicks - 1)) * width;
-                
-                ctx.fillText(timestamp, x, height + 20);
-                
-                // Draw vertical grid line
-                ctx.beginPath();
-                ctx.strokeStyle = '#e0e0e0';
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, height);
-                ctx.stroke();
-            }
-            
-            // Draw x and y axes
-            ctx.beginPath();
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.moveTo(0, height);
-            ctx.lineTo(width, height); // x-axis
-            ctx.moveTo(0, 0);
-            ctx.lineTo(0, height); // left y-axis
-            ctx.moveTo(width, 0);
-            ctx.lineTo(width, height); // right y-axis
-            ctx.stroke();
-            
-            // Draw data series - CORRECTED PART: Connect only valid points
-            series.forEach(serie => {
-                // First draw the line connecting only valid points
-                ctx.beginPath();
-                let lastValidX = null;
-                let lastValidY = null;
-                
-                for (let i = 0; i < serie.data.length; i++) {
-                    const point = serie.data[i];
-                    if (point.y !== null) {
-                        const x = (i / (sortedTimestamps.length - 1)) * width;
-                        let y;
-                        
-                        if (serie.yAxis === 'left') {
-                            y = height - ((point.y - leftMin) / (leftMax - leftMin)) * height;
-                        } else {
-                            y = height - ((point.y - rightMin) / (rightMax - rightMin)) * height;
-                        }
-                        
-                        if (lastValidX !== null && lastValidY !== null) {
-                            // Draw line from last valid point to current point
-                            ctx.moveTo(lastValidX, lastValidY);
-                            ctx.lineTo(x, y);
-                        }
-                        
-                        lastValidX = x;
-                        lastValidY = y;
-                    }
-                }
-                
-                ctx.strokeStyle = serie.color;
-                ctx.lineWidth = 2;
-                
-                if (serie.dash) {
-                    ctx.setLineDash([5, 5]);
-                } else {
-                    ctx.setLineDash([]);
-                }
-                
-                ctx.stroke();
-                ctx.setLineDash([]);
-                
-                // Then draw the points
-                serie.data.forEach((point, index) => {
-                    if (point.y !== null) {
-                        const x = (index / (sortedTimestamps.length - 1)) * width;
-                        let y;
-                        
-                        if (serie.yAxis === 'left') {
-                            y = height - ((point.y - leftMin) / (leftMax - leftMin)) * height;
-                        } else {
-                            y = height - ((point.y - rightMin) / (rightMax - rightMin)) * height;
-                        }
-                        
-                        ctx.fillStyle = serie.color;
-                        ctx.beginPath();
-                        ctx.arc(x, y, 4, 0, 2 * Math.PI);
-                        ctx.fill();
-                    }
-                });
-            });
-            
-            // Draw legend
-            const legendY = -20;
-            let legendX = 0;
-            
-            series.forEach((serie, index) => {
-                if (legendX > width - 150) {
-                    legendX = 0;
-                    // Move to next row if needed
-                }
-                
-                // Draw legend color box
-                ctx.fillStyle = serie.color;
-                ctx.fillRect(legendX, legendY - 10, 12, 12);
-                
-                if (serie.dash) {
-                    ctx.strokeStyle = serie.color;
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(legendX, legendY);
-                    ctx.lineTo(legendX + 12, legendY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-                
-                // Draw legend text
-                ctx.fillStyle = '#333';
-                ctx.font = '12px Arial';
-                ctx.fillText(serie.name, legendX + 20, legendY + 4);
-                
-                legendX += ctx.measureText(serie.name).width + 40;
-            });
-            
-            ctx.restore();
-        }
-
         // Function to fetch and process METAR and TAF data
         async function fetchWeatherData() {
             try {
                 const hours = document.getElementById('hoursSlider').value;
                 const selectedHourValue = hoursOptions[hours];
-                
                 const response = await fetch(`https://aviationweather.gov/api/data/metar?ids=VHHH,VMMC,ZGSZ&taf=true&hours=${selectedHourValue}&format=raw`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 const data = await response.text();
-                
                 // Split the response into lines
                 const lines = data.split('\n').filter(line => line.trim() !== '');
-                
                 // Initialize arrays for each station
                 const stations = {
                     VHHH: { metar: [], taf: [] },
@@ -778,7 +257,6 @@
                 };
                 let currentTaf = null;
                 let currentStation = null;
-
                 // Process each line
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
@@ -814,7 +292,6 @@
                         }
                     }
                 }
-                
                 // Update DOM for each station
                 for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
                     // Sort METAR/SPECI reports by timestamp (most recent first)
@@ -823,18 +300,15 @@
                         const timeB = extractTimestamp(b);
                         return timeB.localeCompare(timeA); // Most recent first
                     });
-                    
                     const metarText = stations[station].metar.join('\n') || `No METAR/SPECI data available for ${station}`;
                     const tafText = stations[station].taf.join('\n') || `No TAF data available for ${station}`;
                     document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
                     document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
                 }
-
                 // Parse and decode METAR/SPECI data
                 const decodedData = parseMETARData(stations);
                 updateTable(decodedData);
                 drawChart(decodedData);
-                
             } catch (error) {
                 // Update all sections with error message
                 for (const station of ['vhhh', 'vmmc', 'zgsz']) {
@@ -844,19 +318,21 @@
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
                 document.getElementById('metarTable').getElementsByTagName('tbody')[0].innerHTML = 
-                    `<tr><td colspan="100%" class="error">Error loading decoded  ${error.message}</td></tr>`;
-                
+                    `<tr><td colspan="100%" class="error">Error loading decoded data: ${error.message}</td></tr>`;
                 // Draw error on chart
-                initChart();
-                if (ctx) {
-                    ctx.font = '16px Arial';
-                    ctx.fillStyle = 'red';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`Error: ${error.message}`, ctx.canvas.width / 2, ctx.canvas.height / 2);
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
                 }
+                const canvas = document.getElementById('chart');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = 'red';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Error: ${error.message}`, canvas.width / 2, canvas.height / 2);
             }
         }
-
         // Helper function to extract timestamp from METAR/SPECI report
         function extractTimestamp(report) {
             const parts = report.split(' ');
@@ -867,15 +343,12 @@
             }
             return "000000"; // Default if no timestamp found
         }
-
         // Function to parse METAR data (now including SPECI)
         function parseMETARData(stations) {
             const parsedData = {};
-            
             // Process each station
             for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
                 parsedData[station] = [];
-                
                 // Process each METAR/SPECI report for this station
                 for (const metar of stations[station].metar) {
                     const report = parseSingleMETAR(metar, station);
@@ -884,30 +357,24 @@
                     }
                 }
             }
-            
             return parsedData;
         }
-
         // Function to parse a single METAR/SPECI report
         function parseSingleMETAR(metar, station) {
             // Remove anything after TEMPO/BECMG/NOSIG
             const tempoIndex = metar.indexOf(' TEMPO ');
             const becmgIndex = metar.indexOf(' BECMG ');
             const nosigIndex = metar.indexOf(' NOSIG');
-            
             let cutoffIndex = -1;
             if (tempoIndex > 0) cutoffIndex = tempoIndex;
             if (becmgIndex > 0 && (cutoffIndex === -1 || becmgIndex < cutoffIndex)) cutoffIndex = becmgIndex;
             if (nosigIndex > 0 && (cutoffIndex === -1 || nosigIndex < cutoffIndex)) cutoffIndex = nosigIndex;
-            
             if (cutoffIndex > 0) {
                 metar = metar.substring(0, cutoffIndex);
             }
-            
             // Extract date/time (DDHHMM)
             const parts = metar.split(' ');
             let stationIndex = -1;
-            
             // Find station code (could be after METAR or SPECI)
             for (let i = 0; i < parts.length; i++) {
                 if (parts[i] === station && (i > 0 && (parts[i-1] === 'METAR' || parts[i-1] === 'SPECI'))) {
@@ -915,9 +382,7 @@
                     break;
                 }
             }
-            
             if (stationIndex === -1) return null;
-            
             // Look for date/time in format DDHHMMZ
             let dateTime = null;
             for (let i = stationIndex + 1; i < parts.length; i++) {
@@ -926,32 +391,25 @@
                     break;
                 }
             }
-            
             if (!dateTime) return null;
-            
             // Use comprehensive regex to extract all METAR components
             const metarRegex = /(?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))\s*(?:\s+(\d{3}V\d{3}))?\s+(\d{4}|CAVOK|\d+SM)(?:\s+(\d{4}[NSEW]{1,3}))?(?:\s+((?:R\d{2}[LRC]?\/[PM]?\d{4}(?:V[PM]?\d{4})?[NDU]?)(?:\s+R\d{2}[LRC]?\/[PM]?\d{4}(?:V[PM]?\d{4})?[NDU]?)*))?\s*((?:(?:[+-]?[A-Z]{2,6})(?![A-Z]*\d)\s*)*)\s*((?:(?:[A-Z]{2,3}\d{3}[A-Z]*)\s*)*)\s*(?:([M]?\d{2})\/([M]?\d{2}))?\s*(?:(?:Q|A)(\d{4}))?/;
             const match = metar.match(metarRegex);
-            
             let windDir = null, windSpd = null, gust = null;
             let visibility = null, dirVisibility = null, weather = null, cloud = null, temp = null, dewpoint = null, qnh = null, rvr = null;
-            
             // Extract wind information
             if (match && match[2]) {
                 const windPart = match[2];
                 const isMPS = windPart.includes('MPS');
-                
                 if (windPart.includes('G')) {
                     const [windBase, gustPart] = windPart.replace('KT', '').replace('MPS', '').split('G');
                     windDir = windBase.substring(0, 3);
                     windSpd = windBase.substring(3);
                     gust = gustPart;
-                    
                     // Handle VRB (variable wind direction)
                     if (windDir === 'VRB') {
                         windDir = null; // Set to null for VRB
                     }
-                    
                     // Convert MPS to knots for ZGSZ
                     if (isMPS && station === 'ZGSZ') {
                         windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
@@ -960,29 +418,24 @@
                 } else {
                     windDir = windPart.substring(0, 3);
                     windSpd = windPart.substring(3, 5).replace('K', '').replace('T', '').replace('M', '').replace('P', '').replace('S', '');
-                    
                     // Handle VRB (variable wind direction)
                     if (windDir === 'VRB') {
                         windDir = null; // Set to null for VRB
                     }
-                    
                     // Convert MPS to knots for ZGSZ
                     if (isMPS && station === 'ZGSZ') {
                         windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
                     }
                 }
             }
-            
             // Extract visibility
             if (match && match[4]) {
                 visibility = match[4];
             }
-            
             // Extract directional visibility
             if (match && match[5]) {
                 dirVisibility = match[5];
             }
-             
             if (match && match[6]) {
                 rvr = match[6];
             }
@@ -990,7 +443,6 @@
             if (match && match[7]) {
                 weather = match[7];
             }
-            
             // Extract cloud
             if (match && match[8]) {
                 cloud = match[8];
@@ -1001,12 +453,10 @@
             if (match && match[10]) {
                 dewpoint = match[10]; 
             }
-            
             // Extract QNH
             if (match && match[11]) {
                 qnh = match[11]; // QNH in hPa
             } 
-            
             return {
                 dateTime,
                 windDir,
@@ -1022,18 +472,15 @@
                 qnh
             };
         }
-
         // Function to update the table
         function updateTable(decodedData) {
             const table = document.getElementById('metarTable');
             const thead = table.getElementsByTagName('thead')[0];
             const tbody = table.getElementsByTagName('tbody')[0];
-            
             // Get selected elements
             const element1 = document.getElementById('element1').value;
             const element2 = document.getElementById('element2').value;
             const selectedElements = [element1, element2];
-            
             // Create table header
             let headerHTML = '<tr><th>DDHHMM</th>';
             const stations = ['VHHH', 'VMMC', 'ZGSZ'];
@@ -1047,7 +494,6 @@
                 tempDew: 'Temp & Dew Point',
                 qnh: 'QNH'
             };
-            
             // Add columns for each selected element for each station
             selectedElements.forEach(element => {
                 stations.forEach(station => {
@@ -1056,7 +502,6 @@
             });
             headerHTML += '</tr>';
             thead.innerHTML = headerHTML;
-            
             // Get all unique timestamps
             const allTimestamps = new Set();
             stations.forEach(station => {
@@ -1064,20 +509,16 @@
                     allTimestamps.add(report.dateTime);
                 });
             });
-            
             // Sort timestamps (most recent first)
             const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => b.localeCompare(a));
-            
             // Create table rows
             if (sortedTimestamps.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="100%">No decoded data available</td></tr>';
                 return;
             }
-            
             let rowsHTML = '';
             sortedTimestamps.forEach(timestamp => {
                 rowsHTML += `<tr><td class="station-header">${timestamp}</td>`;
-                
                 // For each selected element
                 selectedElements.forEach(element => {
                     // For each station
@@ -1086,7 +527,6 @@
                         const report = decodedData[station].find(r => r.dateTime === timestamp);
                         if (report) {
                             let displayValue = '-';
-                            
                             // Handle combined elements
                             if (element === 'tempDew') {
                                 if (report.temp !== null && report.dewpoint !== null) {
@@ -1119,7 +559,6 @@
                                     displayValue = value;
                                 }
                             }
-                            
                             rowsHTML += `<td>${displayValue}</td>`;
                         } else {
                             rowsHTML += '<td>-</td>';
@@ -1128,21 +567,17 @@
                 });
                 rowsHTML += '</tr>';
             });
-            
             tbody.innerHTML = rowsHTML;
         }
-
         // Initialize hours slider
         function initHoursSlider() {
             const slider = document.getElementById('hoursSlider');
             const valueDisplay = document.getElementById('hoursValue');
-            
             // Set initial value based on localStorage or default to 12
             const savedHours = localStorage.getItem('metarHours') || '12';
             const index = hoursOptions.indexOf(savedHours);
             slider.value = index >= 0 ? index : 4; // Default to index 4 (12 hours)
             valueDisplay.textContent = savedHours + ' hours';
-            
             // Update on slider change
             slider.addEventListener('input', function() {
                 const selectedHours = hoursOptions[this.value];
@@ -1151,28 +586,403 @@
                 fetchWeatherData();
             });
         }
-
+        
+        // CHART.JS IMPLEMENTATION - REPLACED THE CUSTOM CHART DRAWING CODE
+        function drawChart(decodedData) {
+            if (!decodedData) return;
+            
+            const canvas = document.getElementById('chart');
+            const ctx = canvas.getContext('2d');
+            
+            const element1 = document.getElementById('element1').value;
+            const element2 = document.getElementById('element2').value;
+            
+            // Update axis labels
+            const elementLabels = {
+                windDir: 'Wind Direction (°)',
+                windSpdGust: 'Wind Speed/Gust (knots)',
+                visibilityDir: 'Visibility (meters)',
+                rvr: 'RVR',
+                weather: 'Weather',
+                cloud: 'Cloud',
+                tempDew: 'Temperature (°C)',
+                qnh: 'QNH (hPa)'
+            };
+            
+            document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
+            document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
+            
+            // Check if elements are plottable (not text-based)
+            const nonPlottableElements = ['weather', 'cloud', 'rvr'];
+            const canPlotElement1 = !nonPlottableElements.includes(element1);
+            const canPlotElement2 = !nonPlottableElements.includes(element2);
+            
+            if (!canPlotElement1 && !canPlotElement2) {
+                // Clear existing chart if it exists
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+                
+                // Show message on canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Get all timestamps across all stations
+            const allTimestamps = new Set();
+            const stations = ['VHHH', 'VMMC', 'ZGSZ'];
+            stations.forEach(station => {
+                if (decodedData[station]) {
+                    decodedData[station].forEach(report => {
+                        allTimestamps.add(report.dateTime);
+                    });
+                }
+            });
+            
+            // Sort timestamps (oldest to newest for x-axis)
+            const sortedTimestamps = Array.from(allTimestamps).sort();
+            
+            if (sortedTimestamps.length === 0) {
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Prepare data for Chart.js
+            const datasets = [];
+            const colorMap = {
+                'VHHH': {
+                    main: 'rgba(51, 102, 204, 1)',
+                    secondary: 'rgba(51, 102, 204, 0.7)'
+                },
+                'VMMC': {
+                    main: 'rgba(220, 57, 18, 1)',
+                    secondary: 'rgba(220, 57, 18, 0.7)'
+                },
+                'ZGSZ': {
+                    main: 'rgba(255, 153, 0, 1)',
+                    secondary: 'rgba(255, 153, 0, 0.7)'
+                }
+            };
+            
+            // Process Element 1 (left axis)
+            if (canPlotElement1) {
+                stations.forEach(station => {
+                    const data = [];
+                    sortedTimestamps.forEach(timestamp => {
+                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                        if (report) {
+                            let value = null;
+                            if (element1 === 'windDir' && report.windDir !== null) {
+                                value = parseFloat(report.windDir);
+                            } else if (element1 === 'windSpdGust' && report.windSpd !== null) {
+                                value = parseFloat(report.windSpd);
+                            } else if (element1 === 'visibilityDir' && report.visibility !== null) {
+                                // Handle CAVOK and other special visibility values
+                                if (report.visibility === 'CAVOK') {
+                                    value = 9999; // CAVOK means >10km, same as 9999
+                                } else if (report.visibility.includes('SM')) {
+                                    // Convert statute miles to meters (approx)
+                                    const smValue = parseFloat(report.visibility);
+                                    value = smValue * 1609.34;
+                                } else {
+                                    value = parseFloat(report.visibility);
+                                }
+                            } else if (element1 === 'tempDew' && report.temp !== null) {
+                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
+                            } else if (element1 === 'qnh' && report.qnh !== null) {
+                                value = parseFloat(report.qnh);
+                            }
+                            data.push({x: timestamp, y: value});
+                        }
+                    });
+                    
+                    // Only add if there's data
+                    if (data.some(d => d.y !== null)) {
+                        datasets.push({
+                            label: `${station} - ${elementLabels[element1].split(' ')[0]}`,
+                            data: data,
+                            borderColor: colorMap[station].main,
+                            backgroundColor: colorMap[station].main,
+                            yAxisID: 'left-y-axis',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        });
+                    }
+                    
+                    // Add second series for combined elements
+                    if (element1 === 'windSpdGust') {
+                        const gustData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.gust !== null) {
+                                gustData.push({x: timestamp, y: parseFloat(report.gust)});
+                            }
+                        });
+                        if (gustData.some(d => d.y !== null)) {
+                            datasets.push({
+                                label: `${station} - Gust`,
+                                data: gustData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'left-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    } else if (element1 === 'tempDew') {
+                        const dewData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.dewpoint !== null) {
+                                dewData.push({x: timestamp, y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
+                            }
+                        });
+                        if (dewData.some(d => d.y !== null)) {
+                            datasets.push({
+                                label: `${station} - Dew Point`,
+                                data: dewData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'left-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    } else if (element1 === 'visibilityDir' && canPlotElement1) {
+                        const dirVisData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.dirVisibility !== null) {
+                                const dirValue = parseFloat(report.dirVisibility);
+                                dirVisData.push({x: timestamp, y: dirValue});
+                            }
+                        });
+                        if (dirVisData.some(d => d.y !== null)) {
+                            datasets.push({
+                                label: `${station} - Dir Visibility`,
+                                data: dirVisData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'left-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // Process Element 2 (right axis)
+            if (canPlotElement2) {
+                stations.forEach(station => {
+                    const data = [];
+                    sortedTimestamps.forEach(timestamp => {
+                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                        if (report) {
+                            let value = null;
+                            if (element2 === 'windDir' && report.windDir !== null) {
+                                value = parseFloat(report.windDir);
+                            } else if (element2 === 'windSpdGust' && report.windSpd !== null) {
+                                value = parseFloat(report.windSpd);
+                            } else if (element2 === 'visibilityDir' && report.visibility !== null) {
+                                if (report.visibility === 'CAVOK') {
+                                    value = 9999;
+                                } else if (report.visibility.includes('SM')) {
+                                    const smValue = parseFloat(report.visibility);
+                                    value = smValue * 1609.34;
+                                } else {
+                                    value = parseFloat(report.visibility);
+                                }
+                            } else if (element2 === 'tempDew' && report.temp !== null) {
+                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
+                            } else if (element2 === 'qnh' && report.qnh !== null) {
+                                value = parseFloat(report.qnh);
+                            }
+                            data.push({x: timestamp, y: value});
+                        }
+                    });
+                    
+                    if (data.some(d => d.y !== null)) {
+                        datasets.push({
+                            label: `${station} - ${elementLabels[element2].split(' ')[0]}`,
+                            data: data,
+                            borderColor: colorMap[station].main,
+                            backgroundColor: colorMap[station].main,
+                            yAxisID: 'right-y-axis',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        });
+                    }
+                    
+                    // Add second series for combined elements
+                    if (element2 === 'windSpdGust') {
+                        const gustData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.gust !== null) {
+                                gustData.push({x: timestamp, y: parseFloat(report.gust)});
+                            }
+                        });
+                        if (gustData.some(d => d.y !== null)) {
+                            datasets.push({
+                                label: `${station} - Gust`,
+                                data: gustData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'right-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    } else if (element2 === 'tempDew') {
+                        const dewData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.dewpoint !== null) {
+                                dewData.push({x: timestamp, y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
+                            }
+                        });
+                        if (dewData.some(d => d.y !== null)) {
+                            datasets.push({
+                                label: `${station} - Dew Point`,
+                                data: dewData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'right-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    } else if (element2 === 'visibilityDir' && canPlotElement2) {
+                        const dirVisData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.dirVisibility !== null) {
+                                const dirValue = parseFloat(report.dirVisibility);
+                                dirVisData.push({x: timestamp, y: dirValue});
+                            }
+                        });
+                        if (dirVisData.some(d => d.y !== null)) {
+                            datasets.push({
+                                label: `${station} - Dir Visibility`,
+                                data: dirVisData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'right-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // If no valid data series, show message
+            if (datasets.length === 0) {
+                if (chart) {
+                    chart.destroy();
+                    chart = null;
+                }
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Destroy existing chart if it exists
+            if (chart) {
+                chart.destroy();
+            }
+            
+            // Create new chart
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            labels: sortedTimestamps,
+                            title: {
+                                display: true,
+                                text: 'Time (DDHHMM)'
+                            }
+                        },
+                        'left-y-axis': {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: elementLabels[element1] || 'Element 1'
+                            }
+                        },
+                        'right-y-axis': {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: elementLabels[element2] || 'Element 2'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'METAR Data Visualization'
+                        }
+                    }
+                }
+            });
+        }
         // Add event listeners to select elements
         document.getElementById('element1').addEventListener('change', fetchWeatherData);
         document.getElementById('element2').addEventListener('change', fetchWeatherData);
-
         // Initialize the page
         window.addEventListener('load', function() {
             initHoursSlider();
             fetchWeatherData();
         });
-        
         // Handle window resize
         window.addEventListener('resize', function() {
-            // Redraw chart on resize
-            const metarTable = document.getElementById('metarTable');
-            if (metarTable && metarTable.dataset.decodedData) {
-                try {
-                    const decodedData = JSON.parse(metarTable.dataset.decodedData);
-                    drawChart(decodedData);
-                } catch (e) {
-                    // Do nothing if data is not available
-                }
+            if (chart) {
+                chart.resize();
             }
         });
     </script>
