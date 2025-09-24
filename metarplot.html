@@ -1,10 +1,13 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>METAR and TAF for VHHH, VMMC, ZGSZ</title>
-    <!-- Add Chart.js library and date-fns adapter -->
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js and date-fns adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
@@ -14,6 +17,7 @@
             margin: 0 auto;
             padding: 20px;
             line-height: 1.6;
+            padding-bottom: 100px; /* Make space for fixed navbar */
         }
         h1 {
             color: #333;
@@ -71,24 +75,6 @@
             position: sticky;
             top: 0;
         }
-        .controls {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f4f4f4;
-            border-radius: 5px;
-        }
-        .select-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 10px;
-            align-items: center;
-        }
-        .select-item {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
         .station-header {
             background-color: #e9e9e9;
             font-weight: bold;
@@ -145,6 +131,13 @@
             width: 100%;
             height: 100%;
         }
+        .fixed-bottom-navbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -170,38 +163,6 @@
             <pre id="metar-zgsz">Loading METAR data...</pre>
             <h3>TAF</h3>
             <pre id="taf-zgsz">Loading TAF data...</pre>
-        </div>
-    </div>
-    <div class="controls">
-        <h3>Customize Table Display</h3>
-        <p>Select 2 elements to display with DDHHMM:</p>
-        <div class="select-group">
-            <div class="select-item">
-                <label for="element1">Element 1:</label>
-                <select id="element1">
-                    <option value="windDir">Wind Dir</option>
-                    <option value="windSpdGust">Wind Spd & Gust</option>
-                    <option value="visibilityDir">Visibility & Dir Visibility</option>
-                    <option value="rvr">RVR</option>
-                    <option value="weather">Weather</option>
-                    <option value="cloud">Cloud</option>
-                    <option value="tempDew">Temp & Dew Point</option>
-                    <option value="qnh">QNH</option>
-                </select>
-            </div>
-            <div class="select-item">
-                <label for="element2">Element 2:</label>
-                <select id="element2">
-                    <option value="windDir">Wind Dir</option>
-                    <option value="windSpdGust">Wind Spd & Gust</option>
-                    <option value="visibilityDir">Visibility & Dir Visibility</option>
-                    <option value="rvr">RVR</option>
-                    <option value="weather">Weather</option>
-                    <option value="cloud">Cloud</option>
-                    <option value="tempDew">Temp & Dew Point</option>
-                    <option value="qnh">QNH</option>
-                </select>
-            </div>
         </div>
     </div>
     <div id="decodedTable">
@@ -231,36 +192,84 @@
         <input type="range" min="0" max="6" class="slider" id="hoursSlider">
         <div>1&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;48</div>
     </div>
+
+    <!-- Fixed Bootstrap Navbar at Bottom -->
+    <nav class="navbar navbar-light bg-light fixed-bottom-navbar">
+        <div class="container-fluid">
+            <div class="d-flex flex-wrap align-items-center w-100">
+                <!-- Airport Selection -->
+                <div class="me-4">
+                    <span class="fw-bold me-2">Airports:</span>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="airport-vhhh" value="VHHH" checked>
+                        <label class="form-check-label" for="airport-vhhh">VHHH</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="airport-vmmc" value="VMMC" checked>
+                        <label class="form-check-label" for="airport-vmmc">VMMC</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="airport-zgsz" value="ZGSZ" checked>
+                        <label class="form-check-label" for="airport-zgsz">ZGSZ</label>
+                    </div>
+                </div>
+
+                <!-- Element Selection -->
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <label for="element1" class="form-label mb-0 me-2">Element 1:</label>
+                        <select id="element1" class="form-select form-select-sm">
+                            <option value="windDir">Wind Dir</option>
+                            <option value="windSpdGust">Wind Spd & Gust</option>
+                            <option value="visibilityDir">Visibility & Dir Visibility</option>
+                            <option value="rvr">RVR</option>
+                            <option value="weather">Weather</option>
+                            <option value="cloud">Cloud</option>
+                            <option value="tempDew">Temp & Dew Point</option>
+                            <option value="qnh">QNH</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="element2" class="form-label mb-0 me-2">Element 2:</label>
+                        <select id="element2" class="form-select form-select-sm">
+                            <option value="windDir">Wind Dir</option>
+                            <option value="windSpdGust">Wind Spd & Gust</option>
+                            <option value="visibilityDir">Visibility & Dir Visibility</option>
+                            <option value="rvr">RVR</option>
+                            <option value="weather">Weather</option>
+                            <option value="cloud">Cloud</option>
+                            <option value="tempDew">Temp & Dew Point</option>
+                            <option value="qnh">QNH</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <script>
         // Get hours from localStorage or default to 12
         let selectedHours = localStorage.getItem('metarHours') || '12';
         const hoursOptions = ['1', '2', '3', '6', '12', '24', '48'];
         // Chart variables
         let chart = null;
-        
         // Helper function to extract cloud values
         function extractCloudValues(cloudStr) {
             if (!cloudStr) return { min: null, max: null };
-            
             // Extract all numeric cloud heights (3 digits after cloud cover code)
             const cloudHeights = [];
             const regex = /[A-Z]{3}(\d{3})/g;
             let match;
-            
             while ((match = regex.exec(cloudStr)) !== null) {
                 const height = parseInt(match[1]);
                 cloudHeights.push(height);
             }
-            
             if (cloudHeights.length === 0) return { min: null, max: null };
-            
             // Find min and max cloud heights
             const minHeight = Math.min(...cloudHeights);
             const maxHeight = Math.max(...cloudHeights);
-            
             return { min: minHeight, max: maxHeight };
         }
-
         // Function to parse DDHHMM timestamp to Date object (UTC)
         function parseTimestamp(timestamp) {
             const now = new Date();
@@ -368,7 +377,7 @@
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
                 document.getElementById('metarTable').getElementsByTagName('tbody')[0].innerHTML = 
-                    `<tr><td colspan="100%" class="error">Error loading decoded  ${error.message}</td></tr>`;
+                    `<tr><td colspan="100%" class="error">Error loading decoded data: ${error.message}</td></tr>`;
                 // Draw error on chart
                 if (chart) {
                     chart.destroy();
@@ -636,441 +645,448 @@
                 fetchWeatherData();
             });
         }
-// CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
-function drawChart(decodedData) {
-    if (!decodedData) return;
-    const canvas = document.getElementById('chart');
-    const ctx = canvas.getContext('2d');
-    const element1 = document.getElementById('element1').value;
-    const element2 = document.getElementById('element2').value;
 
-    // Update axis labels
-    const elementLabels = {
-        windDir: 'Wind Direction (°)',
-        windSpdGust: 'Wind Speed/Gust (knots)',
-        visibilityDir: 'Visibility (meters)',
-        rvr: 'RVR',
-        weather: 'Weather',
-        cloud: 'Cloud Height (hundreds of feet)',
-        tempDew: 'Temperature (°C)',
-        qnh: 'QNH (hPa)'
-    };
+        // CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
+        function drawChart(decodedData) {
+            if (!decodedData) return;
+            const canvas = document.getElementById('chart');
+            const ctx = canvas.getContext('2d');
+            const element1 = document.getElementById('element1').value;
+            const element2 = document.getElementById('element2').value;
+            // Get selected airports
+            const selectedAirports = [];
+            if (document.getElementById('airport-vhhh').checked) selectedAirports.push('VHHH');
+            if (document.getElementById('airport-vmmc').checked) selectedAirports.push('VMMC');
+            if (document.getElementById('airport-zgsz').checked) selectedAirports.push('ZGSZ');
 
-    document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
-    document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
+            // Update axis labels
+            const elementLabels = {
+                windDir: 'Wind Direction (°)',
+                windSpdGust: 'Wind Speed/Gust (knots)',
+                visibilityDir: 'Visibility (meters)',
+                rvr: 'RVR',
+                weather: 'Weather',
+                cloud: 'Cloud Height (hundreds of feet)',
+                tempDew: 'Temperature (°C)',
+                qnh: 'QNH (hPa)'
+            };
+            document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
+            document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
 
-    // Only 'weather' and 'rvr' are non-plottable; cloud is now plottable!
-    const nonPlottableElements = ['weather', 'rvr'];
-    const canPlotElement1 = !nonPlottableElements.includes(element1);
-    const canPlotElement2 = !nonPlottableElements.includes(element2);
+            // Only 'weather' and 'rvr' are non-plottable; cloud is now plottable!
+            const nonPlottableElements = ['weather', 'rvr'];
+            const canPlotElement1 = !nonPlottableElements.includes(element1);
+            const canPlotElement2 = !nonPlottableElements.includes(element2);
 
-    if (!canPlotElement1 && !canPlotElement2) {
-        if (chart) { chart.destroy(); chart = null; }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '16px Arial';
-        ctx.fillStyle = '#666';
-        ctx.textAlign = 'center';
-        ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
-        return;
-    }
+            if (!canPlotElement1 && !canPlotElement2) {
+                if (chart) { chart.destroy(); chart = null; }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
+                return;
+            }
 
-    // Get all timestamps
-    const allTimestamps = new Set();
-    const stations = ['VHHH', 'VMMC', 'ZGSZ'];
-    stations.forEach(station => {
-        if (decodedData[station]) {
-            decodedData[station].forEach(report => {
-                allTimestamps.add(report.dateTime);
+            // Get all timestamps from selected airports only
+            const allTimestamps = new Set();
+            selectedAirports.forEach(station => {
+                if (decodedData[station]) {
+                    decodedData[station].forEach(report => {
+                        allTimestamps.add(report.dateTime);
+                    });
+                }
+            });
+            const sortedTimestamps = Array.from(allTimestamps).sort();
+            if (sortedTimestamps.length === 0) {
+                if (chart) { chart.destroy(); chart = null; }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // Helper to extract cloud min/max
+            function extractCloudValues(cloudStr) {
+                if (!cloudStr) return { min: null, max: null };
+                const cloudHeights = [];
+                const regex = /[A-Z]{3}(\d{3})/g;
+                let match;
+                while ((match = regex.exec(cloudStr)) !== null) {
+                    const height = parseInt(match[1]);
+                    cloudHeights.push(height);
+                }
+                if (cloudHeights.length === 0) return { min: null, max: null };
+                return {
+                    min: Math.min(...cloudHeights),
+                    max: Math.max(...cloudHeights)
+                };
+            }
+
+            const datasets = [];
+            const colorMap = {
+                'VHHH': { main: 'rgba(51, 102, 204, 1)', secondary: 'rgba(51, 102, 204, 0.7)' },
+                'VMMC': { main: 'rgba(220, 57, 18, 1)', secondary: 'rgba(220, 57, 18, 0.7)' },
+                'ZGSZ': { main: 'rgba(255, 153, 0, 1)', secondary: 'rgba(255, 153, 0, 0.7)' }
+            };
+
+            // Process Element 1 (left axis) - only for selected airports
+            if (canPlotElement1) {
+                selectedAirports.forEach(station => {
+                    if (element1 === 'cloud') {
+                        // Handle cloud: plot min and max
+                        const minData = [], maxData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.cloud) {
+                                const { min, max } = extractCloudValues(report.cloud);
+                                const x = parseTimestamp(timestamp);
+                                if (min !== null) minData.push({x, y: min});
+                                if (max !== null) maxData.push({x, y: max});
+                            }
+                        });
+                        if (minData.length > 0) {
+                            datasets.push({
+                                label: `${station} - Lowest Cloud`,
+                                data: minData,
+                                borderColor: colorMap[station].main,
+                                backgroundColor: colorMap[station].main,
+                                yAxisID: 'left-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                        if (maxData.length > 0) {
+                            datasets.push({
+                                label: `${station} - Highest Cloud`,
+                                data: maxData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'left-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    } else {
+                        // Handle non-cloud elements
+                        const data = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (!report) return;
+                            let value = null;
+                            if (element1 === 'windDir' && report.windDir !== null) {
+                                value = parseFloat(report.windDir);
+                            } else if (element1 === 'windSpdGust' && report.windSpd !== null) {
+                                value = parseFloat(report.windSpd);
+                            } else if (element1 === 'visibilityDir' && report.visibility !== null) {
+                                if (report.visibility === 'CAVOK') value = 9999;
+                                else if (report.visibility.includes('SM')) value = parseFloat(report.visibility) * 1609.34;
+                                else value = parseFloat(report.visibility);
+                            } else if (element1 === 'tempDew' && report.temp !== null) {
+                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
+                            } else if (element1 === 'qnh' && report.qnh !== null) {
+                                value = parseFloat(report.qnh);
+                            }
+                            if (value !== null) {
+                                data.push({x: parseTimestamp(timestamp), y: value});
+                            }
+                        });
+                        if (data.length > 0) {
+                            // Use proper label based on element
+                            let baseLabel = elementLabels[element1].split(' ')[0];
+                            if (element1 === 'windSpdGust') baseLabel = 'Wind Spd';
+                            else if (element1 === 'tempDew') baseLabel = 'Temp';
+                            else if (element1 === 'visibilityDir') baseLabel = 'Visibility';
+                            datasets.push({
+                                label: `${station} - ${baseLabel}`,
+                                data,
+                                borderColor: colorMap[station].main,
+                                backgroundColor: colorMap[station].main,
+                                yAxisID: 'left-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                        // Add secondary series for combined elements (only if not cloud)
+                        if (element1 === 'windSpdGust') {
+                            const gustData = [];
+                            sortedTimestamps.forEach(timestamp => {
+                                const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                                if (report && report.gust !== null) {
+                                    gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
+                                }
+                            });
+                            if (gustData.length > 0) {
+                                datasets.push({
+                                    label: `${station} - Gust`,
+                                    data: gustData,
+                                    borderColor: colorMap[station].secondary,
+                                    backgroundColor: colorMap[station].secondary,
+                                    borderDash: [5, 5],
+                                    yAxisID: 'left-y-axis',
+                                    borderWidth: 2,
+                                    pointRadius: 4
+                                });
+                            }
+                        } else if (element1 === 'tempDew') {
+                            const dewData = [];
+                            sortedTimestamps.forEach(timestamp => {
+                                const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                                if (report && report.dewpoint !== null) {
+                                    dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
+                                }
+                            });
+                            if (dewData.length > 0) {
+                                datasets.push({
+                                    label: `${station} - Dew Point`,
+                                    data: dewData,
+                                    borderColor: colorMap[station].secondary,
+                                    backgroundColor: colorMap[station].secondary,
+                                    borderDash: [5, 5],
+                                    yAxisID: 'left-y-axis',
+                                    borderWidth: 2,
+                                    pointRadius: 4
+                                });
+                            }
+                        } else if (element1 === 'visibilityDir') {
+                            const dirVisData = [];
+                            sortedTimestamps.forEach(timestamp => {
+                                const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                                if (report && report.dirVisibility !== null) {
+                                    dirVisData.push({x: parseTimestamp(timestamp), y: parseFloat(report.dirVisibility)});
+                                }
+                            });
+                            if (dirVisData.length > 0) {
+                                datasets.push({
+                                    label: `${station} - Dir Visibility`,
+                                    data: dirVisData,
+                                    borderColor: colorMap[station].secondary,
+                                    backgroundColor: colorMap[station].secondary,
+                                    borderDash: [5, 5],
+                                    yAxisID: 'left-y-axis',
+                                    borderWidth: 2,
+                                    pointRadius: 4
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Process Element 2 (right axis) — same logic as above, only for selected airports
+            if (canPlotElement2) {
+                selectedAirports.forEach(station => {
+                    if (element2 === 'cloud') {
+                        const minData = [], maxData = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (report && report.cloud) {
+                                const { min, max } = extractCloudValues(report.cloud);
+                                const x = parseTimestamp(timestamp);
+                                if (min !== null) minData.push({x, y: min});
+                                if (max !== null) maxData.push({x, y: max});
+                            }
+                        });
+                        if (minData.length > 0) {
+                            datasets.push({
+                                label: `${station} - Lowest Cloud`,
+                                data: minData,
+                                borderColor: colorMap[station].main,
+                                backgroundColor: colorMap[station].main,
+                                yAxisID: 'right-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                        if (maxData.length > 0) {
+                            datasets.push({
+                                label: `${station} - Highest Cloud`,
+                                data: maxData,
+                                borderColor: colorMap[station].secondary,
+                                backgroundColor: colorMap[station].secondary,
+                                borderDash: [5, 5],
+                                yAxisID: 'right-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                    } else {
+                        const data = [];
+                        sortedTimestamps.forEach(timestamp => {
+                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                            if (!report) return;
+                            let value = null;
+                            if (element2 === 'windDir' && report.windDir !== null) {
+                                value = parseFloat(report.windDir);
+                            } else if (element2 === 'windSpdGust' && report.windSpd !== null) {
+                                value = parseFloat(report.windSpd);
+                            } else if (element2 === 'visibilityDir' && report.visibility !== null) {
+                                if (report.visibility === 'CAVOK') value = 9999;
+                                else if (report.visibility.includes('SM')) value = parseFloat(report.visibility) * 1609.34;
+                                else value = parseFloat(report.visibility);
+                            } else if (element2 === 'tempDew' && report.temp !== null) {
+                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
+                            } else if (element2 === 'qnh' && report.qnh !== null) {
+                                value = parseFloat(report.qnh);
+                            }
+                            if (value !== null) {
+                                data.push({x: parseTimestamp(timestamp), y: value});
+                            }
+                        });
+                        if (data.length > 0) {
+                            let baseLabel = elementLabels[element2].split(' ')[0];
+                            if (element2 === 'windSpdGust') baseLabel = 'Wind Spd';
+                            else if (element2 === 'tempDew') baseLabel = 'Temp';
+                            else if (element2 === 'visibilityDir') baseLabel = 'Visibility';
+                            datasets.push({
+                                label: `${station} - ${baseLabel}`,
+                                data,
+                                borderColor: colorMap[station].main,
+                                backgroundColor: colorMap[station].main,
+                                yAxisID: 'right-y-axis',
+                                borderWidth: 2,
+                                pointRadius: 4
+                            });
+                        }
+                        if (element2 === 'windSpdGust') {
+                            const gustData = [];
+                            sortedTimestamps.forEach(timestamp => {
+                                const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                                if (report && report.gust !== null) {
+                                    gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
+                                }
+                            });
+                            if (gustData.length > 0) {
+                                datasets.push({
+                                    label: `${station} - Gust`,
+                                    data: gustData,
+                                    borderColor: colorMap[station].secondary,
+                                    backgroundColor: colorMap[station].secondary,
+                                    borderDash: [5, 5],
+                                    yAxisID: 'right-y-axis',
+                                    borderWidth: 2,
+                                    pointRadius: 4
+                                });
+                            }
+                        } else if (element2 === 'tempDew') {
+                            const dewData = [];
+                            sortedTimestamps.forEach(timestamp => {
+                                const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                                if (report && report.dewpoint !== null) {
+                                    dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
+                                }
+                            });
+                            if (dewData.length > 0) {
+                                datasets.push({
+                                    label: `${station} - Dew Point`,
+                                    data: dewData,
+                                    borderColor: colorMap[station].secondary,
+                                    backgroundColor: colorMap[station].secondary,
+                                    borderDash: [5, 5],
+                                    yAxisID: 'right-y-axis',
+                                    borderWidth: 2,
+                                    pointRadius: 4
+                                });
+                            }
+                        } else if (element2 === 'visibilityDir') {
+                            const dirVisData = [];
+                            sortedTimestamps.forEach(timestamp => {
+                                const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                                if (report && report.dirVisibility !== null) {
+                                    dirVisData.push({x: parseTimestamp(timestamp), y: parseFloat(report.dirVisibility)});
+                                }
+                            });
+                            if (dirVisData.length > 0) {
+                                datasets.push({
+                                    label: `${station} - Dir Visibility`,
+                                    data: dirVisData,
+                                    borderColor: colorMap[station].secondary,
+                                    backgroundColor: colorMap[station].secondary,
+                                    borderDash: [5, 5],
+                                    yAxisID: 'right-y-axis',
+                                    borderWidth: 2,
+                                    pointRadius: 4
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (datasets.length === 0) {
+                if (chart) { chart.destroy(); chart = null; }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: { hour: 'dd HH:mm' },
+                                tooltipFormat: 'MMM dd, HH:mm'
+                            },
+                            title: { display: true, text: 'Time (UTC)' }
+                        },
+                        'left-y-axis': {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: elementLabels[element1] || 'Element 1' }
+                        },
+                        'right-y-axis': {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: elementLabels[element2] || 'Element 2' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'METAR Data Visualization' },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const date = new Date(tooltipItems[0].parsed.x);
+                                    return date.getUTCDate().toString().padStart(2, '0') +
+                                           date.getUTCHours().toString().padStart(2, '0') +
+                                           date.getUTCMinutes().toString().padStart(2, '0') + 'Z';
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
-    });
 
-    const sortedTimestamps = Array.from(allTimestamps).sort();
-    if (sortedTimestamps.length === 0) {
-        if (chart) { chart.destroy(); chart = null; }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '16px Arial';
-        ctx.fillStyle = '#666';
-        ctx.textAlign = 'center';
-        ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
-        return;
-    }
-
-    // Helper to extract cloud min/max
-    function extractCloudValues(cloudStr) {
-        if (!cloudStr) return { min: null, max: null };
-        const cloudHeights = [];
-        const regex = /[A-Z]{3}(\d{3})/g;
-        let match;
-        while ((match = regex.exec(cloudStr)) !== null) {
-            const height = parseInt(match[1]);
-            cloudHeights.push(height);
-        }
-        if (cloudHeights.length === 0) return { min: null, max: null };
-        return {
-            min: Math.min(...cloudHeights),
-            max: Math.max(...cloudHeights)
-        };
-    }
-
-    const datasets = [];
-    const colorMap = {
-        'VHHH': { main: 'rgba(51, 102, 204, 1)', secondary: 'rgba(51, 102, 204, 0.7)' },
-        'VMMC': { main: 'rgba(220, 57, 18, 1)', secondary: 'rgba(220, 57, 18, 0.7)' },
-        'ZGSZ': { main: 'rgba(255, 153, 0, 1)', secondary: 'rgba(255, 153, 0, 0.7)' }
-    };
-
-    // Process Element 1 (left axis)
-    if (canPlotElement1) {
-        stations.forEach(station => {
-            if (element1 === 'cloud') {
-                // Handle cloud: plot min and max
-                const minData = [], maxData = [];
-                sortedTimestamps.forEach(timestamp => {
-                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                    if (report && report.cloud) {
-                        const { min, max } = extractCloudValues(report.cloud);
-                        const x = parseTimestamp(timestamp);
-                        if (min !== null) minData.push({x, y: min});
-                        if (max !== null) maxData.push({x, y: max});
-                    }
-                });
-                if (minData.length > 0) {
-                    datasets.push({
-                        label: `${station} - Lowest Cloud`,
-                        data: minData,
-                        borderColor: colorMap[station].main,
-                        backgroundColor: colorMap[station].main,
-                        yAxisID: 'left-y-axis',
-                        borderWidth: 2,
-                        pointRadius: 4
-                    });
-                }
-                if (maxData.length > 0) {
-                    datasets.push({
-                        label: `${station} - Highest Cloud`,
-                        data: maxData,
-                        borderColor: colorMap[station].secondary,
-                        backgroundColor: colorMap[station].secondary,
-                        borderDash: [5, 5],
-                        yAxisID: 'left-y-axis',
-                        borderWidth: 2,
-                        pointRadius: 4
-                    });
-                }
-            } else {
-                // Handle non-cloud elements
-                const data = [];
-                sortedTimestamps.forEach(timestamp => {
-                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                    if (!report) return;
-                    let value = null;
-                    if (element1 === 'windDir' && report.windDir !== null) {
-                        value = parseFloat(report.windDir);
-                    } else if (element1 === 'windSpdGust' && report.windSpd !== null) {
-                        value = parseFloat(report.windSpd);
-                    } else if (element1 === 'visibilityDir' && report.visibility !== null) {
-                        if (report.visibility === 'CAVOK') value = 9999;
-                        else if (report.visibility.includes('SM')) value = parseFloat(report.visibility) * 1609.34;
-                        else value = parseFloat(report.visibility);
-                    } else if (element1 === 'tempDew' && report.temp !== null) {
-                        value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
-                    } else if (element1 === 'qnh' && report.qnh !== null) {
-                        value = parseFloat(report.qnh);
-                    }
-                    if (value !== null) {
-                        data.push({x: parseTimestamp(timestamp), y: value});
-                    }
-                });
-                if (data.length > 0) {
-                    // Use proper label based on element
-                    let baseLabel = elementLabels[element1].split(' ')[0];
-                    if (element1 === 'windSpdGust') baseLabel = 'Wind Spd';
-                    else if (element1 === 'tempDew') baseLabel = 'Temp';
-                    else if (element1 === 'visibilityDir') baseLabel = 'Visibility';
-                    datasets.push({
-                        label: `${station} - ${baseLabel}`,
-                        data,
-                        borderColor: colorMap[station].main,
-                        backgroundColor: colorMap[station].main,
-                        yAxisID: 'left-y-axis',
-                        borderWidth: 2,
-                        pointRadius: 4
-                    });
-                }
-
-                // Add secondary series for combined elements (only if not cloud)
-                if (element1 === 'windSpdGust') {
-                    const gustData = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report && report.gust !== null) {
-                            gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
-                        }
-                    });
-                    if (gustData.length > 0) {
-                        datasets.push({
-                            label: `${station} - Gust`,
-                            data: gustData,
-                            borderColor: colorMap[station].secondary,
-                            backgroundColor: colorMap[station].secondary,
-                            borderDash: [5, 5],
-                            yAxisID: 'left-y-axis',
-                            borderWidth: 2,
-                            pointRadius: 4
-                        });
-                    }
-                } else if (element1 === 'tempDew') {
-                    const dewData = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report && report.dewpoint !== null) {
-                            dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
-                        }
-                    });
-                    if (dewData.length > 0) {
-                        datasets.push({
-                            label: `${station} - Dew Point`,
-                            data: dewData,
-                            borderColor: colorMap[station].secondary,
-                            backgroundColor: colorMap[station].secondary,
-                            borderDash: [5, 5],
-                            yAxisID: 'left-y-axis',
-                            borderWidth: 2,
-                            pointRadius: 4
-                        });
-                    }
-                } else if (element1 === 'visibilityDir') {
-                    const dirVisData = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report && report.dirVisibility !== null) {
-                            dirVisData.push({x: parseTimestamp(timestamp), y: parseFloat(report.dirVisibility)});
-                        }
-                    });
-                    if (dirVisData.length > 0) {
-                        datasets.push({
-                            label: `${station} - Dir Visibility`,
-                            data: dirVisData,
-                            borderColor: colorMap[station].secondary,
-                            backgroundColor: colorMap[station].secondary,
-                            borderDash: [5, 5],
-                            yAxisID: 'left-y-axis',
-                            borderWidth: 2,
-                            pointRadius: 4
-                        });
-                    }
-                }
-            }
-        });
-    }
-
-    // Process Element 2 (right axis) — same logic as above
-    if (canPlotElement2) {
-        stations.forEach(station => {
-            if (element2 === 'cloud') {
-                const minData = [], maxData = [];
-                sortedTimestamps.forEach(timestamp => {
-                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                    if (report && report.cloud) {
-                        const { min, max } = extractCloudValues(report.cloud);
-                        const x = parseTimestamp(timestamp);
-                        if (min !== null) minData.push({x, y: min});
-                        if (max !== null) maxData.push({x, y: max});
-                    }
-                });
-                if (minData.length > 0) {
-                    datasets.push({
-                        label: `${station} - Lowest Cloud`,
-                        data: minData,
-                        borderColor: colorMap[station].main,
-                        backgroundColor: colorMap[station].main,
-                        yAxisID: 'right-y-axis',
-                        borderWidth: 2,
-                        pointRadius: 4
-                    });
-                }
-                if (maxData.length > 0) {
-                    datasets.push({
-                        label: `${station} - Highest Cloud`,
-                        data: maxData,
-                        borderColor: colorMap[station].secondary,
-                        backgroundColor: colorMap[station].secondary,
-                        borderDash: [5, 5],
-                        yAxisID: 'right-y-axis',
-                        borderWidth: 2,
-                        pointRadius: 4
-                    });
-                }
-            } else {
-                const data = [];
-                sortedTimestamps.forEach(timestamp => {
-                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                    if (!report) return;
-                    let value = null;
-                    if (element2 === 'windDir' && report.windDir !== null) {
-                        value = parseFloat(report.windDir);
-                    } else if (element2 === 'windSpdGust' && report.windSpd !== null) {
-                        value = parseFloat(report.windSpd);
-                    } else if (element2 === 'visibilityDir' && report.visibility !== null) {
-                        if (report.visibility === 'CAVOK') value = 9999;
-                        else if (report.visibility.includes('SM')) value = parseFloat(report.visibility) * 1609.34;
-                        else value = parseFloat(report.visibility);
-                    } else if (element2 === 'tempDew' && report.temp !== null) {
-                        value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
-                    } else if (element2 === 'qnh' && report.qnh !== null) {
-                        value = parseFloat(report.qnh);
-                    }
-                    if (value !== null) {
-                        data.push({x: parseTimestamp(timestamp), y: value});
-                    }
-                });
-                if (data.length > 0) {
-                    let baseLabel = elementLabels[element2].split(' ')[0];
-                    if (element2 === 'windSpdGust') baseLabel = 'Wind Spd';
-                    else if (element2 === 'tempDew') baseLabel = 'Temp';
-                    else if (element2 === 'visibilityDir') baseLabel = 'Visibility';
-                    datasets.push({
-                        label: `${station} - ${baseLabel}`,
-                        data,
-                        borderColor: colorMap[station].main,
-                        backgroundColor: colorMap[station].main,
-                        yAxisID: 'right-y-axis',
-                        borderWidth: 2,
-                        pointRadius: 4
-                    });
-                }
-
-                if (element2 === 'windSpdGust') {
-                    const gustData = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report && report.gust !== null) {
-                            gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
-                        }
-                    });
-                    if (gustData.length > 0) {
-                        datasets.push({
-                            label: `${station} - Gust`,
-                            data: gustData,
-                            borderColor: colorMap[station].secondary,
-                            backgroundColor: colorMap[station].secondary,
-                            borderDash: [5, 5],
-                            yAxisID: 'right-y-axis',
-                            borderWidth: 2,
-                            pointRadius: 4
-                        });
-                    }
-                } else if (element2 === 'tempDew') {
-                    const dewData = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report && report.dewpoint !== null) {
-                            dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
-                        }
-                    });
-                    if (dewData.length > 0) {
-                        datasets.push({
-                            label: `${station} - Dew Point`,
-                            data: dewData,
-                            borderColor: colorMap[station].secondary,
-                            backgroundColor: colorMap[station].secondary,
-                            borderDash: [5, 5],
-                            yAxisID: 'right-y-axis',
-                            borderWidth: 2,
-                            pointRadius: 4
-                        });
-                    }
-                } else if (element2 === 'visibilityDir') {
-                    const dirVisData = [];
-                    sortedTimestamps.forEach(timestamp => {
-                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report && report.dirVisibility !== null) {
-                            dirVisData.push({x: parseTimestamp(timestamp), y: parseFloat(report.dirVisibility)});
-                        }
-                    });
-                    if (dirVisData.length > 0) {
-                        datasets.push({
-                            label: `${station} - Dir Visibility`,
-                            data: dirVisData,
-                            borderColor: colorMap[station].secondary,
-                            backgroundColor: colorMap[station].secondary,
-                            borderDash: [5, 5],
-                            yAxisID: 'right-y-axis',
-                            borderWidth: 2,
-                            pointRadius: 4
-                        });
-                    }
-                }
-            }
-        });
-    }
-
-    if (datasets.length === 0) {
-        if (chart) { chart.destroy(); chart = null; }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '16px Arial';
-        ctx.fillStyle = '#666';
-        ctx.textAlign = 'center';
-        ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
-        return;
-    }
-
-    if (chart) chart.destroy();
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: { datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'hour',
-                        displayFormats: { hour: 'dd HH:mm' },
-                        tooltipFormat: 'MMM dd, HH:mm'
-                    },
-                    title: { display: true, text: 'Time (UTC)' }
-                },
-                'left-y-axis': {
-                    type: 'linear',
-                    position: 'left',
-                    title: { display: true, text: elementLabels[element1] || 'Element 1' }
-                },
-                'right-y-axis': {
-                    type: 'linear',
-                    position: 'right',
-                    title: { display: true, text: elementLabels[element2] || 'Element 2' },
-                    grid: { drawOnChartArea: false }
-                }
-            },
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: true, text: 'METAR Data Visualization' },
-                tooltip: {
-                    callbacks: {
-                        title: function(tooltipItems) {
-                            const date = new Date(tooltipItems[0].parsed.x);
-                            return date.getUTCDate().toString().padStart(2, '0') +
-                                   date.getUTCHours().toString().padStart(2, '0') +
-                                   date.getUTCMinutes().toString().padStart(2, '0') + 'Z';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-        // Add event listeners to select elements
+        // Add event listeners to select elements and airport checkboxes
         document.getElementById('element1').addEventListener('change', fetchWeatherData);
         document.getElementById('element2').addEventListener('change', fetchWeatherData);
+        document.getElementById('airport-vhhh').addEventListener('change', fetchWeatherData);
+        document.getElementById('airport-vmmc').addEventListener('change', fetchWeatherData);
+        document.getElementById('airport-zgsz').addEventListener('change', fetchWeatherData);
+
         // Initialize the page
         window.addEventListener('load', function() {
             initHoursSlider();
             fetchWeatherData();
         });
+
         // Handle window resize
         window.addEventListener('resize', function() {
             if (chart) {
@@ -1080,3 +1096,4 @@ function drawChart(decodedData) {
     </script>
 </body>
 </html>
+```
