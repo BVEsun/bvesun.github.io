@@ -636,437 +636,433 @@
                 fetchWeatherData();
             });
         }
-        // CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
-        function drawChart(decodedData) {
-            if (!decodedData) return;
-            const canvas = document.getElementById('chart');
-            const ctx = canvas.getContext('2d');
-            const element1 = document.getElementById('element1').value;
-            const element2 = document.getElementById('element2').value;
-            // Update axis labels
-            const elementLabels = {
-                windDir: 'Wind Direction (°)',
-                windSpdGust: 'Wind Speed/Gust (knots)',
-                visibilityDir: 'Visibility (meters)',
-                rvr: 'RVR',
-                weather: 'Weather',
-                cloud: 'Cloud Height (hundreds of feet)',
-                tempDew: 'Temperature (°C)',
-                qnh: 'QNH (hPa)'
-            };
-            document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
-            document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
-            // Check if elements are plottable (not text-based)
-            const nonPlottableElements = ['weather', 'rvr'];
-            const canPlotElement1 = !nonPlottableElements.includes(element1);
-            const canPlotElement2 = !nonPlottableElements.includes(element2);
-            if (!canPlotElement1 && !canPlotElement2) {
-                // Clear existing chart if it exists
-                if (chart) {
-                    chart.destroy();
-                    chart = null;
-                }
-                // Show message on canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#666';
-                ctx.textAlign = 'center';
-                ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-            // Get all timestamps across all stations
-            const allTimestamps = new Set();
-            const stations = ['VHHH', 'VMMC', 'ZGSZ'];
-            stations.forEach(station => {
-                if (decodedData[station]) {
-                    decodedData[station].forEach(report => {
-                        allTimestamps.add(report.dateTime);
+// CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
+function drawChart(decodedData) {
+    if (!decodedData) return;
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    const element1 = document.getElementById('element1').value;
+    const element2 = document.getElementById('element2').value;
+
+    // Update axis labels
+    const elementLabels = {
+        windDir: 'Wind Direction (°)',
+        windSpdGust: 'Wind Speed/Gust (knots)',
+        visibilityDir: 'Visibility (meters)',
+        rvr: 'RVR',
+        weather: 'Weather',
+        cloud: 'Cloud Height (hundreds of feet)',
+        tempDew: 'Temperature (°C)',
+        qnh: 'QNH (hPa)'
+    };
+
+    document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
+    document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
+
+    // Only 'weather' and 'rvr' are non-plottable; cloud is now plottable!
+    const nonPlottableElements = ['weather', 'rvr'];
+    const canPlotElement1 = !nonPlottableElements.includes(element1);
+    const canPlotElement2 = !nonPlottableElements.includes(element2);
+
+    if (!canPlotElement1 && !canPlotElement2) {
+        if (chart) { chart.destroy(); chart = null; }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'center';
+        ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    // Get all timestamps
+    const allTimestamps = new Set();
+    const stations = ['VHHH', 'VMMC', 'ZGSZ'];
+    stations.forEach(station => {
+        if (decodedData[station]) {
+            decodedData[station].forEach(report => {
+                allTimestamps.add(report.dateTime);
+            });
+        }
+    });
+
+    const sortedTimestamps = Array.from(allTimestamps).sort();
+    if (sortedTimestamps.length === 0) {
+        if (chart) { chart.destroy(); chart = null; }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    // Helper to extract cloud min/max
+    function extractCloudValues(cloudStr) {
+        if (!cloudStr) return { min: null, max: null };
+        const cloudHeights = [];
+        const regex = /[A-Z]{3}(\d{3})/g;
+        let match;
+        while ((match = regex.exec(cloudStr)) !== null) {
+            const height = parseInt(match[1]);
+            cloudHeights.push(height);
+        }
+        if (cloudHeights.length === 0) return { min: null, max: null };
+        return {
+            min: Math.min(...cloudHeights),
+            max: Math.max(...cloudHeights)
+        };
+    }
+
+    const datasets = [];
+    const colorMap = {
+        'VHHH': { main: 'rgba(51, 102, 204, 1)', secondary: 'rgba(51, 102, 204, 0.7)' },
+        'VMMC': { main: 'rgba(220, 57, 18, 1)', secondary: 'rgba(220, 57, 18, 0.7)' },
+        'ZGSZ': { main: 'rgba(255, 153, 0, 1)', secondary: 'rgba(255, 153, 0, 0.7)' }
+    };
+
+    // Process Element 1 (left axis)
+    if (canPlotElement1) {
+        stations.forEach(station => {
+            if (element1 === 'cloud') {
+                // Handle cloud: plot min and max
+                const minData = [], maxData = [];
+                sortedTimestamps.forEach(timestamp => {
+                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                    if (report && report.cloud) {
+                        const { min, max } = extractCloudValues(report.cloud);
+                        const x = parseTimestamp(timestamp);
+                        if (min !== null) minData.push({x, y: min});
+                        if (max !== null) maxData.push({x, y: max});
+                    }
+                });
+                if (minData.length > 0) {
+                    datasets.push({
+                        label: `${station} - Lowest Cloud`,
+                        data: minData,
+                        borderColor: colorMap[station].main,
+                        backgroundColor: colorMap[station].main,
+                        yAxisID: 'left-y-axis',
+                        borderWidth: 2,
+                        pointRadius: 4
                     });
                 }
-            });
-            // Sort timestamps (oldest to newest for x-axis)
-            const sortedTimestamps = Array.from(allTimestamps).sort();
-            if (sortedTimestamps.length === 0) {
-                if (chart) {
-                    chart.destroy();
-                    chart = null;
+                if (maxData.length > 0) {
+                    datasets.push({
+                        label: `${station} - Highest Cloud`,
+                        data: maxData,
+                        borderColor: colorMap[station].secondary,
+                        backgroundColor: colorMap[station].secondary,
+                        borderDash: [5, 5],
+                        yAxisID: 'left-y-axis',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    });
                 }
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#666';
-                ctx.textAlign = 'center';
-                ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
-                return;
-            }
-            // Prepare data for Chart.js
-            const datasets = [];
-            const colorMap = {
-                'VHHH': {
-                    main: 'rgba(51, 102, 204, 1)',
-                    secondary: 'rgba(51, 102, 204, 0.7)'
-                },
-                'VMMC': {
-                    main: 'rgba(220, 57, 18, 1)',
-                    secondary: 'rgba(220, 57, 18, 0.7)'
-                },
-                'ZGSZ': {
-                    main: 'rgba(255, 153, 0, 1)',
-                    secondary: 'rgba(255, 153, 0, 0.7)'
+            } else {
+                // Handle non-cloud elements
+                const data = [];
+                sortedTimestamps.forEach(timestamp => {
+                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                    if (!report) return;
+                    let value = null;
+                    if (element1 === 'windDir' && report.windDir !== null) {
+                        value = parseFloat(report.windDir);
+                    } else if (element1 === 'windSpdGust' && report.windSpd !== null) {
+                        value = parseFloat(report.windSpd);
+                    } else if (element1 === 'visibilityDir' && report.visibility !== null) {
+                        if (report.visibility === 'CAVOK') value = 9999;
+                        else if (report.visibility.includes('SM')) value = parseFloat(report.visibility) * 1609.34;
+                        else value = parseFloat(report.visibility);
+                    } else if (element1 === 'tempDew' && report.temp !== null) {
+                        value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
+                    } else if (element1 === 'qnh' && report.qnh !== null) {
+                        value = parseFloat(report.qnh);
+                    }
+                    if (value !== null) {
+                        data.push({x: parseTimestamp(timestamp), y: value});
+                    }
+                });
+                if (data.length > 0) {
+                    // Use proper label based on element
+                    let baseLabel = elementLabels[element1].split(' ')[0];
+                    if (element1 === 'windSpdGust') baseLabel = 'Wind Spd';
+                    else if (element1 === 'tempDew') baseLabel = 'Temp';
+                    else if (element1 === 'visibilityDir') baseLabel = 'Visibility';
+                    datasets.push({
+                        label: `${station} - ${baseLabel}`,
+                        data,
+                        borderColor: colorMap[station].main,
+                        backgroundColor: colorMap[station].main,
+                        yAxisID: 'left-y-axis',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    });
                 }
-            };
-            // Process Element 1 (left axis)
-            if (canPlotElement1) {
-                stations.forEach(station => {
-                    const data = [];
+
+                // Add secondary series for combined elements (only if not cloud)
+                if (element1 === 'windSpdGust') {
+                    const gustData = [];
                     sortedTimestamps.forEach(timestamp => {
                         const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report) {
-                            let value = null;
-                            if (element1 === 'windDir' && report.windDir !== null) {
-                                value = parseFloat(report.windDir);
-                            } else if (element1 === 'windSpdGust' && report.windSpd !== null) {
-                                value = parseFloat(report.windSpd);
-                            } else if (element1 === 'visibilityDir' && report.visibility !== null) {
-                                // Handle CAVOK and other special visibility values
-                                if (report.visibility === 'CAVOK') {
-                                    value = 9999; // CAVOK means >10km, same as 9999
-                                } else if (report.visibility.includes('SM')) {
-                                    // Convert statute miles to meters (approx)
-                                    const smValue = parseFloat(report.visibility);
-                                    value = smValue * 1609.34;
-                                } else {
-                                    value = parseFloat(report.visibility);
-                                }
-                            } else if (element1 === 'tempDew' && report.temp !== null) {
-                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
-                            } else if (element1 === 'qnh' && report.qnh !== null) {
-                                value = parseFloat(report.qnh);
-                            } else if (element1 === 'cloud' && report.cloud !== null) {
-                                const { min } = extractCloudValues(report.cloud);
-                                value = min;
-                            }
-                            // Convert timestamp to proper Date object for x-axis
-                            data.push({x: parseTimestamp(timestamp), y: value});
+                        if (report && report.gust !== null) {
+                            gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
                         }
                     });
-                    // Only add if there's data
-                    if (data.some(d => d.y !== null)) {
+                    if (gustData.length > 0) {
                         datasets.push({
-                            label: `${station} - Lowest Cloud`,
-                            data,
-                            borderColor: colorMap[station].main,
-                            backgroundColor: colorMap[station].main,
+                            label: `${station} - Gust`,
+                            data: gustData,
+                            borderColor: colorMap[station].secondary,
+                            backgroundColor: colorMap[station].secondary,
+                            borderDash: [5, 5],
                             yAxisID: 'left-y-axis',
                             borderWidth: 2,
                             pointRadius: 4
                         });
                     }
-                    // Add second series for combined elements
-                    if (element1 === 'windSpdGust') {
-                        const gustData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.gust !== null) {
-                                gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
-                            }
-                        });
-                        if (gustData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Gust`,
-                                data: gustData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'left-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
-                        }
-                    } else if (element1 === 'tempDew') {
-                        const dewData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dewpoint !== null) {
-                                dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
-                            }
-                        });
-                        if (dewData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Dew Point`,
-                                data: dewData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'left-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
-                        }
-                    } else if (element1 === 'visibilityDir' && canPlotElement1) {
-                        const dirVisData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dirVisibility !== null) {
-                                const dirValue = parseFloat(report.dirVisibility);
-                                dirVisData.push({x: parseTimestamp(timestamp), y: dirValue});
-                            }
-                        });
-                        if (dirVisData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Dir Visibility`,
-                                data: dirVisData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'left-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
-                        }
-                    } else if (element1 === 'cloud') {
-                        const cloudData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.cloud !== null) {
-                                const { max } = extractCloudValues(report.cloud);
-                                if (max !== null) {
-                                    cloudData.push({x: parseTimestamp(timestamp), y: max});
-                                }
-                            }
-                        });
-                        if (cloudData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Highest Cloud`,
-                                data: cloudData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'left-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
-                        }
-                    }
-                });
-            }
-            // Process Element 2 (right axis)
-            if (canPlotElement2) {
-                stations.forEach(station => {
-                    const data = [];
+                } else if (element1 === 'tempDew') {
+                    const dewData = [];
                     sortedTimestamps.forEach(timestamp => {
                         const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                        if (report) {
-                            let value = null;
-                            if (element2 === 'windDir' && report.windDir !== null) {
-                                value = parseFloat(report.windDir);
-                            } else if (element2 === 'windSpdGust' && report.windSpd !== null) {
-                                value = parseFloat(report.windSpd);
-                            } else if (element2 === 'visibilityDir' && report.visibility !== null) {
-                                if (report.visibility === 'CAVOK') {
-                                    value = 9999;
-                                } else if (report.visibility.includes('SM')) {
-                                    const smValue = parseFloat(report.visibility);
-                                    value = smValue * 1609.34;
-                                } else {
-                                    value = parseFloat(report.visibility);
-                                }
-                            } else if (element2 === 'tempDew' && report.temp !== null) {
-                                value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
-                            } else if (element2 === 'qnh' && report.qnh !== null) {
-                                value = parseFloat(report.qnh);
-                            } else if (element2 === 'cloud' && report.cloud !== null) {
-                                const { min } = extractCloudValues(report.cloud);
-                                value = min;
-                            }
-                            data.push({x: parseTimestamp(timestamp), y: value});
+                        if (report && report.dewpoint !== null) {
+                            dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
                         }
                     });
-                    if (data.some(d => d.y !== null)) {
+                    if (dewData.length > 0) {
                         datasets.push({
-                            label: `${station} - Lowest Cloud`,
-                            data,
-                            borderColor: colorMap[station].main,
-                            backgroundColor: colorMap[station].main,
+                            label: `${station} - Dew Point`,
+                            data: dewData,
+                            borderColor: colorMap[station].secondary,
+                            backgroundColor: colorMap[station].secondary,
+                            borderDash: [5, 5],
+                            yAxisID: 'left-y-axis',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        });
+                    }
+                } else if (element1 === 'visibilityDir') {
+                    const dirVisData = [];
+                    sortedTimestamps.forEach(timestamp => {
+                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                        if (report && report.dirVisibility !== null) {
+                            dirVisData.push({x: parseTimestamp(timestamp), y: parseFloat(report.dirVisibility)});
+                        }
+                    });
+                    if (dirVisData.length > 0) {
+                        datasets.push({
+                            label: `${station} - Dir Visibility`,
+                            data: dirVisData,
+                            borderColor: colorMap[station].secondary,
+                            backgroundColor: colorMap[station].secondary,
+                            borderDash: [5, 5],
+                            yAxisID: 'left-y-axis',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    // Process Element 2 (right axis) — same logic as above
+    if (canPlotElement2) {
+        stations.forEach(station => {
+            if (element2 === 'cloud') {
+                const minData = [], maxData = [];
+                sortedTimestamps.forEach(timestamp => {
+                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                    if (report && report.cloud) {
+                        const { min, max } = extractCloudValues(report.cloud);
+                        const x = parseTimestamp(timestamp);
+                        if (min !== null) minData.push({x, y: min});
+                        if (max !== null) maxData.push({x, y: max});
+                    }
+                });
+                if (minData.length > 0) {
+                    datasets.push({
+                        label: `${station} - Lowest Cloud`,
+                        data: minData,
+                        borderColor: colorMap[station].main,
+                        backgroundColor: colorMap[station].main,
+                        yAxisID: 'right-y-axis',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    });
+                }
+                if (maxData.length > 0) {
+                    datasets.push({
+                        label: `${station} - Highest Cloud`,
+                        data: maxData,
+                        borderColor: colorMap[station].secondary,
+                        backgroundColor: colorMap[station].secondary,
+                        borderDash: [5, 5],
+                        yAxisID: 'right-y-axis',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    });
+                }
+            } else {
+                const data = [];
+                sortedTimestamps.forEach(timestamp => {
+                    const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                    if (!report) return;
+                    let value = null;
+                    if (element2 === 'windDir' && report.windDir !== null) {
+                        value = parseFloat(report.windDir);
+                    } else if (element2 === 'windSpdGust' && report.windSpd !== null) {
+                        value = parseFloat(report.windSpd);
+                    } else if (element2 === 'visibilityDir' && report.visibility !== null) {
+                        if (report.visibility === 'CAVOK') value = 9999;
+                        else if (report.visibility.includes('SM')) value = parseFloat(report.visibility) * 1609.34;
+                        else value = parseFloat(report.visibility);
+                    } else if (element2 === 'tempDew' && report.temp !== null) {
+                        value = report.temp.startsWith('M') ? -parseFloat(report.temp.substring(1)) : parseFloat(report.temp);
+                    } else if (element2 === 'qnh' && report.qnh !== null) {
+                        value = parseFloat(report.qnh);
+                    }
+                    if (value !== null) {
+                        data.push({x: parseTimestamp(timestamp), y: value});
+                    }
+                });
+                if (data.length > 0) {
+                    let baseLabel = elementLabels[element2].split(' ')[0];
+                    if (element2 === 'windSpdGust') baseLabel = 'Wind Spd';
+                    else if (element2 === 'tempDew') baseLabel = 'Temp';
+                    else if (element2 === 'visibilityDir') baseLabel = 'Visibility';
+                    datasets.push({
+                        label: `${station} - ${baseLabel}`,
+                        data,
+                        borderColor: colorMap[station].main,
+                        backgroundColor: colorMap[station].main,
+                        yAxisID: 'right-y-axis',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    });
+                }
+
+                if (element2 === 'windSpdGust') {
+                    const gustData = [];
+                    sortedTimestamps.forEach(timestamp => {
+                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                        if (report && report.gust !== null) {
+                            gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
+                        }
+                    });
+                    if (gustData.length > 0) {
+                        datasets.push({
+                            label: `${station} - Gust`,
+                            data: gustData,
+                            borderColor: colorMap[station].secondary,
+                            backgroundColor: colorMap[station].secondary,
+                            borderDash: [5, 5],
                             yAxisID: 'right-y-axis',
                             borderWidth: 2,
                             pointRadius: 4
                         });
                     }
-                    // Add second series for combined elements
-                    if (element2 === 'windSpdGust') {
-                        const gustData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.gust !== null) {
-                                gustData.push({x: parseTimestamp(timestamp), y: parseFloat(report.gust)});
-                            }
-                        });
-                        if (gustData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Gust`,
-                                data: gustData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'right-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
+                } else if (element2 === 'tempDew') {
+                    const dewData = [];
+                    sortedTimestamps.forEach(timestamp => {
+                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                        if (report && report.dewpoint !== null) {
+                            dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
                         }
-                    } else if (element2 === 'tempDew') {
-                        const dewData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dewpoint !== null) {
-                                dewData.push({x: parseTimestamp(timestamp), y: report.dewpoint.startsWith('M') ? -parseFloat(report.dewpoint.substring(1)) : parseFloat(report.dewpoint)});
-                            }
+                    });
+                    if (dewData.length > 0) {
+                        datasets.push({
+                            label: `${station} - Dew Point`,
+                            data: dewData,
+                            borderColor: colorMap[station].secondary,
+                            backgroundColor: colorMap[station].secondary,
+                            borderDash: [5, 5],
+                            yAxisID: 'right-y-axis',
+                            borderWidth: 2,
+                            pointRadius: 4
                         });
-                        if (dewData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Dew Point`,
-                                data: dewData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'right-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
-                        }
-                    } else if (element2 === 'visibilityDir' && canPlotElement2) {
-                        const dirVisData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.dirVisibility !== null) {
-                                const dirValue = parseFloat(report.dirVisibility);
-                                dirVisData.push({x: parseTimestamp(timestamp), y: dirValue});
-                            }
-                        });
-                        if (dirVisData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Dir Visibility`,
-                                data: dirVisData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'right-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
-                        }
-                    } else if (element2 === 'cloud') {
-                        const cloudData = [];
-                        sortedTimestamps.forEach(timestamp => {
-                            const report = decodedData[station]?.find(r => r.dateTime === timestamp);
-                            if (report && report.cloud !== null) {
-                                const { max } = extractCloudValues(report.cloud);
-                                if (max !== null) {
-                                    cloudData.push({x: parseTimestamp(timestamp), y: max});
-                                }
-                            }
-                        });
-                        if (cloudData.some(d => d.y !== null)) {
-                            datasets.push({
-                                label: `${station} - Highest Cloud`,
-                                data: cloudData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
-                                borderDash: [5, 5],
-                                yAxisID: 'right-y-axis',
-                                borderWidth: 2,
-                                pointRadius: 4
-                            });
-                        }
                     }
-                });
-            }
-            // If no valid data series, show message
-            if (datasets.length === 0) {
-                if (chart) {
-                    chart.destroy();
-                    chart = null;
+                } else if (element2 === 'visibilityDir') {
+                    const dirVisData = [];
+                    sortedTimestamps.forEach(timestamp => {
+                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
+                        if (report && report.dirVisibility !== null) {
+                            dirVisData.push({x: parseTimestamp(timestamp), y: parseFloat(report.dirVisibility)});
+                        }
+                    });
+                    if (dirVisData.length > 0) {
+                        datasets.push({
+                            label: `${station} - Dir Visibility`,
+                            data: dirVisData,
+                            borderColor: colorMap[station].secondary,
+                            backgroundColor: colorMap[station].secondary,
+                            borderDash: [5, 5],
+                            yAxisID: 'right-y-axis',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        });
+                    }
                 }
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#666';
-                ctx.textAlign = 'center';
-                ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
-                return;
             }
-            // Destroy existing chart if it exists
-            if (chart) {
-                chart.destroy();
-            }
-            // Create new chart with time-based x-axis
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: datasets
+        });
+    }
+
+    if (datasets.length === 0) {
+        if (chart) { chart.destroy(); chart = null; }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'center';
+        ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        displayFormats: { hour: 'dd HH:mm' },
+                        tooltipFormat: 'MMM dd, HH:mm'
+                    },
+                    title: { display: true, text: 'Time (UTC)' }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'hour',
-                                displayFormats: {
-                                    hour: 'dd HH:mm'  // Changed from 'DD HH:mm' to 'dd HH:mm'
-                                },
-                                tooltipFormat: 'MMM dd, HH:mm'
-                            },
-                            title: {
-                                display: true,
-                                text: 'Time (UTC)'
-                            }
-                        },
-                        'left-y-axis': {
-                            type: 'linear',
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: elementLabels[element1] || 'Element 1'
-                            }
-                        },
-                        'right-y-axis': {
-                            type: 'linear',
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: elementLabels[element2] || 'Element 2'
-                            },
-                            grid: {
-                                drawOnChartArea: false
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: 'METAR Data Visualization'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                title: function(tooltipItems) {
-                                    const date = new Date(tooltipItems[0].parsed.x);
-                                    return date.getUTCDate().toString().padStart(2, '0') + 
-                                           (date.getUTCHours()).toString().padStart(2, '0') + 
-                                           (date.getUTCMinutes()).toString().padStart(2, '0') + 'Z';
-                                }
-                            }
+                'left-y-axis': {
+                    type: 'linear',
+                    position: 'left',
+                    title: { display: true, text: elementLabels[element1] || 'Element 1' }
+                },
+                'right-y-axis': {
+                    type: 'linear',
+                    position: 'right',
+                    title: { display: true, text: elementLabels[element2] || 'Element 2' },
+                    grid: { drawOnChartArea: false }
+                }
+            },
+            plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: 'METAR Data Visualization' },
+                tooltip: {
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const date = new Date(tooltipItems[0].parsed.x);
+                            return date.getUTCDate().toString().padStart(2, '0') +
+                                   date.getUTCHours().toString().padStart(2, '0') +
+                                   date.getUTCMinutes().toString().padStart(2, '0') + 'Z';
                         }
                     }
                 }
-            });
+            }
         }
+    });
+}
         // Add event listeners to select elements
         document.getElementById('element1').addEventListener('change', fetchWeatherData);
         document.getElementById('element2').addEventListener('change', fetchWeatherData);
