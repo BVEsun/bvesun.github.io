@@ -246,13 +246,10 @@
         <canvas id="chart"></canvas>
     </div>
     <div class="hours-slider-container">
-        <h3>Hours of Data to Display</h3>
-        
         <!-- Airport Selection -->
         <div class="controls-section">
-            <div class="control-group">
-                <label>Airports:</label>
-                <div class="airport-controls">
+            <div class="control-group">             
+                <label>Airports:</label><div class="airport-controls">
                     <div class="airport-item">
                         <input class="form-check-input" type="checkbox" id="airport-vhhh" value="VHHH" checked>
                         <label class="form-check-label" for="airport-vhhh">VHHH</label>
@@ -267,8 +264,7 @@
                     </div>
                 </div>
             </div>
-        </div>
-        
+        </div>        
         <!-- Element Selection -->
         <div class="controls-section">
             <div class="element-control">
@@ -283,8 +279,7 @@
                     <option value="tempDew">Temp & Dew Point</option>
                     <option value="qnh">QNH</option>
                 </select>
-            </div>
-            <div class="element-control">
+            </div><div class="element-control">
                 <label for="element2">Element 2:</label>
                 <select id="element2" class="form-select form-select-sm">
                     <option value="windDir">Wind Dir</option>
@@ -298,11 +293,9 @@
                 </select>
             </div>
         </div>
-        
         <!-- Hours Slider -->
         <div class="slider-value" id="hoursValue">12 hours</div>
         <input type="range" min="0" max="6" class="slider" id="hoursSlider">
-        <div>1&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;48</div>
     </div>
     <!-- Fixed Bootstrap Navbar at Bottom - Only Display Toggles -->
     <nav class="navbar navbar-light bg-light fixed-bottom-navbar">
