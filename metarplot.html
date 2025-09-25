@@ -145,7 +145,7 @@
     </style>
 </head>
 <body>
-    <h1>METAR and TAF for VHHH, VMMC, ZGSZ</h1>
+    <h1>METAR and TAF for VHHH, VMMC, <span id="customAirportLabel">ZGSZ</span></h1>
     <div id="rawTextSection">
         <div class="container">
             <div class="column">
@@ -163,11 +163,11 @@
                 <pre id="taf-vmmc">Loading TAF data...</pre>
             </div>
             <div class="column">
-                <h2>ZGSZ (Shenzhen)</h2>
+                <h2 id="customAirportHeader">ZGSZ (Shenzhen)</h2>
                 <h3>METAR/SPECI</h3>
-                <pre id="metar-zgsz">Loading METAR data...</pre>
+                <pre id="metar-custom">Loading METAR data...</pre>
                 <h3>TAF</h3>
-                <pre id="taf-zgsz">Loading TAF data...</pre>
+                <pre id="taf-custom">Loading TAF data...</pre>
             </div>
         </div>
     </div>
@@ -215,7 +215,7 @@
                     </div>
                 </div>
                 <!-- Airport Selection -->
-                <div class="me-4">
+                <div class="me-4 d-flex align-items-center">
                     <span class="fw-bold me-2">Airports:</span>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="checkbox" id="airport-vhhh" value="VHHH" checked>
@@ -225,9 +225,8 @@
                         <input class="form-check-input" type="checkbox" id="airport-vmmc" value="VMMC" checked>
                         <label class="form-check-label" for="airport-vmmc">VMMC</label>
                     </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="airport-zgsz" value="ZGSZ" checked>
-                        <label class="form-check-label" for="airport-zgsz">ZGSZ</label>
+                    <div class="ms-2">
+                        <input type="text" id="custom-airport-input" class="form-control form-control-sm" placeholder="e.g. ZGSZ" style="width: 80px; display: inline-block;">
                     </div>
                 </div>
                 <!-- Element Selection -->
@@ -316,7 +315,18 @@
             try {
                 const hours = document.getElementById('hoursSlider').value;
                 const selectedHourValue = hoursOptions[hours];
-                const response = await fetch(`https://aviationweather.gov/api/data/metar?ids=VHHH,VMMC,ZGSZ&taf=true&hours=${selectedHourValue}&format=raw`);
+                // Get selected airports
+                const airports = [];
+                if (document.getElementById('airport-vhhh').checked) airports.push('VHHH');
+                if (document.getElementById('airport-vmmc').checked) airports.push('VMMC');
+                const customAirport = document.getElementById('custom-airport-input').value.trim().toUpperCase();
+                if (customAirport && /^[A-Z0-9]{4}$/.test(customAirport)) {
+                    airports.push(customAirport);
+                }
+                if (airports.length === 0) {
+                    throw new Error('At least one airport must be selected');
+                }
+                const response = await fetch(`https://aviationweather.gov/api/data/metar?ids=${airports.join(',')}&taf=true&hours=${selectedHourValue}&format=raw`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
@@ -324,20 +334,20 @@
                 // Split the response into lines
                 const lines = data.split('\n').filter(line => line.trim() !== '');
                 // Initialize arrays for each station
-                const stations = {
-                    VHHH: { metar: [], taf: [] },
-                    VMMC: { metar: [], taf: [] },
-                    ZGSZ: { metar: [], taf: [] }
-                };
+                const stations = {};
+                airports.forEach(apt => {
+                    stations[apt] = { metar: [], taf: [] };
+                });
                 let currentTaf = null;
                 let currentStation = null;
                 // Process each line
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
                     // Check for METAR or SPECI reports
-                    if ((line.startsWith('METAR VHHH') || line.startsWith('SPECI VHHH')) || 
-                        (line.startsWith('METAR VMMC') || line.startsWith('SPECI VMMC')) || 
-                        (line.startsWith('METAR ZGSZ') || line.startsWith('SPECI ZGSZ'))) {
+                    const isMetarSpeci = airports.some(apt => 
+                        line.startsWith(`METAR ${apt}`) || line.startsWith(`SPECI ${apt}`)
+                    );
+                    if (isMetarSpeci) {
                         // Extract station code
                         const parts = line.split(' ');
                         let station = null;
@@ -347,7 +357,7 @@
                         if (station && stations[station]) {
                             stations[station].metar.push(line);
                         }
-                    } else if (line.startsWith('TAF VHHH') || line.startsWith('TAF VMMC') || line.startsWith('TAF ZGSZ')) {
+                    } else if (airports.some(apt => line.startsWith(`TAF ${apt}`))) {
                         // Start of a new TAF entry
                         const station = line.split(' ')[1];
                         currentTaf = [line];
@@ -356,28 +366,60 @@
                         while (i + 1 < lines.length && 
                                !lines[i + 1].startsWith('METAR ') && 
                                !lines[i + 1].startsWith('SPECI ') && 
-                               !lines[i + 1].startsWith('TAF ')) {
+                               !airports.some(apt => lines[i + 1].startsWith(`TAF ${apt}`))) {
                             i++;
                             currentTaf.push(lines[i]);
                         }
                         // Only keep the most recent TAF (first occurrence for each station)
-                        if (stations[station].taf.length === 0) {
+                        if (stations[station] && stations[station].taf.length === 0) {
                             stations[station].taf = currentTaf;
                         }
                     }
                 }
                 // Update DOM for each station
-                for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
-                    // Sort METAR/SPECI reports by timestamp (most recent first)
-                    stations[station].metar.sort((a, b) => {
-                        const timeA = extractTimestamp(a);
-                        const timeB = extractTimestamp(b);
-                        return timeB.localeCompare(timeA); // Most recent first
-                    });
-                    const metarText = stations[station].metar.join('\n') || `No METAR/SPECI data available for ${station}`;
-                    const tafText = stations[station].taf.join('\n') || `No TAF data available for ${station}`;
-                    document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
-                    document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
+                const fixedAirports = ['VHHH', 'VMMC'];
+                fixedAirports.forEach(station => {
+                    if (stations[station]) {
+                        stations[station].metar.sort((a, b) => {
+                            const timeA = extractTimestamp(a);
+                            const timeB = extractTimestamp(b);
+                            return timeB.localeCompare(timeA); // Most recent first
+                        });
+                        const metarText = stations[station].metar.join('\n') || `No METAR/SPECI data available for ${station}`;
+                        const tafText = stations[station].taf.join('\n') || `No TAF data available for ${station}`;
+                        document.getElementById(`metar-${station.toLowerCase()}`).textContent = metarText;
+                        document.getElementById(`taf-${station.toLowerCase()}`).textContent = tafText;
+                    } else {
+                        document.getElementById(`metar-${station.toLowerCase()}`).textContent = `No data available for ${station}`;
+                        document.getElementById(`taf-${station.toLowerCase()}`).textContent = `No data available for ${station}`;
+                    }
+                });
+                // Handle custom airport
+                const customAirportCode = document.getElementById('custom-airport-input').value.trim().toUpperCase();
+                if (customAirportCode && /^[A-Z0-9]{4}$/.test(customAirportCode)) {
+                    if (stations[customAirportCode]) {
+                        stations[customAirportCode].metar.sort((a, b) => {
+                            const timeA = extractTimestamp(a);
+                            const timeB = extractTimestamp(b);
+                            return timeB.localeCompare(timeA);
+                        });
+                        const metarText = stations[customAirportCode].metar.join('\n') || `No METAR/SPECI data available for ${customAirportCode}`;
+                        const tafText = stations[customAirportCode].taf.join('\n') || `No TAF data available for ${customAirportCode}`;
+                        document.getElementById('metar-custom').textContent = metarText;
+                        document.getElementById('taf-custom').textContent = tafText;
+                        document.getElementById('customAirportHeader').textContent = `${customAirportCode} (Custom)`;
+                        document.getElementById('customAirportLabel').textContent = customAirportCode;
+                    } else {
+                        document.getElementById('metar-custom').textContent = `No data available for ${customAirportCode}`;
+                        document.getElementById('taf-custom').textContent = `No data available for ${customAirportCode}`;
+                        document.getElementById('customAirportHeader').textContent = `${customAirportCode} (Custom)`;
+                        document.getElementById('customAirportLabel').textContent = customAirportCode;
+                    }
+                } else {
+                    document.getElementById('metar-custom').textContent = 'Enter a valid 4-letter airport code';
+                    document.getElementById('taf-custom').textContent = 'Enter a valid 4-letter airport code';
+                    document.getElementById('customAirportHeader').textContent = 'Custom Airport';
+                    document.getElementById('customAirportLabel').textContent = 'Custom';
                 }
                 // Parse and decode METAR/SPECI data
                 const decodedData = parseMETARData(stations);
@@ -385,12 +427,16 @@
                 drawChart(decodedData);
             } catch (error) {
                 // Update all sections with error message
-                for (const station of ['vhhh', 'vmmc', 'zgsz']) {
+                for (const station of ['vhhh', 'vmmc']) {
                     document.getElementById(`metar-${station}`).classList.add('error');
                     document.getElementById(`metar-${station}`).textContent = `Error fetching METAR/SPECI: ${error.message}`;
                     document.getElementById(`taf-${station}`).classList.add('error');
                     document.getElementById(`taf-${station}`).textContent = `Error fetching TAF: ${error.message}`;
                 }
+                document.getElementById('metar-custom').classList.add('error');
+                document.getElementById('taf-custom').classList.add('error');
+                document.getElementById('metar-custom').textContent = `Error: ${error.message}`;
+                document.getElementById('taf-custom').textContent = `Error: ${error.message}`;
                 document.getElementById('metarTable').getElementsByTagName('tbody')[0].innerHTML = 
                     `<tr><td colspan="100%" class="error">Error loading decoded data: ${error.message}</td></tr>`;
                 // Draw error on chart
@@ -421,7 +467,7 @@
         function parseMETARData(stations) {
             const parsedData = {};
             // Process each station
-            for (const station of ['VHHH', 'VMMC', 'ZGSZ']) {
+            for (const station of Object.keys(stations)) {
                 parsedData[station] = [];
                 // Process each METAR/SPECI report for this station
                 for (const metar of stations[station].metar) {
@@ -484,8 +530,8 @@
                     if (windDir === 'VRB') {
                         windDir = null; // Set to null for VRB
                     }
-                    // Convert MPS to knots for ZGSZ
-                    if (isMPS && station === 'ZGSZ') {
+                    // Convert MPS to knots for Chinese airports (ending with Z)
+                    if (isMPS && station.endsWith('Z')) {
                         windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
                         gust = Math.round(parseFloat(gust) * 1.94384).toString();
                     }
@@ -496,8 +542,8 @@
                     if (windDir === 'VRB') {
                         windDir = null; // Set to null for VRB
                     }
-                    // Convert MPS to knots for ZGSZ
-                    if (isMPS && station === 'ZGSZ') {
+                    // Convert MPS to knots for Chinese airports (ending with Z)
+                    if (isMPS && station.endsWith('Z')) {
                         windSpd = Math.round(parseFloat(windSpd) * 1.94384).toString();
                     }
                 }
@@ -555,9 +601,18 @@
             const element1 = document.getElementById('element1').value;
             const element2 = document.getElementById('element2').value;
             const selectedElements = [element1, element2];
-            // Create table header
-            let headerHTML = '<tr><th>DDHHMM</th>';
-            const stations = ['VHHH', 'VMMC', 'ZGSZ'];
+            // Get selected airports
+            const stations = [];
+            if (document.getElementById('airport-vhhh').checked) stations.push('VHHH');
+            if (document.getElementById('airport-vmmc').checked) stations.push('VMMC');
+            const customAirport = document.getElementById('custom-airport-input').value.trim().toUpperCase();
+            if (customAirport && /^[A-Z0-9]{4}$/.test(customAirport)) {
+                stations.push(customAirport);
+            }
+            if (stations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="100%">Select at least one airport</td></tr>';
+                return;
+            }
             const elementLabels = {
                 windDir: 'Wind Dir',
                 windSpdGust: 'Wind Spd & Gust',
@@ -568,7 +623,8 @@
                 tempDew: 'Temp & Dew Point',
                 qnh: 'QNH'
             };
-            // Add columns for each selected element for each station
+            // Create table header
+            let headerHTML = '<tr><th>DDHHMM</th>';
             selectedElements.forEach(element => {
                 stations.forEach(station => {
                     headerHTML += `<th>${station} - ${elementLabels[element]}</th>`;
@@ -579,9 +635,11 @@
             // Get all unique timestamps
             const allTimestamps = new Set();
             stations.forEach(station => {
-                decodedData[station].forEach(report => {
-                    allTimestamps.add(report.dateTime);
-                });
+                if (decodedData[station]) {
+                    decodedData[station].forEach(report => {
+                        allTimestamps.add(report.dateTime);
+                    });
+                }
             });
             // Sort timestamps (most recent first)
             const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => b.localeCompare(a));
@@ -593,15 +651,11 @@
             let rowsHTML = '';
             sortedTimestamps.forEach(timestamp => {
                 rowsHTML += `<tr><td class="station-header">${timestamp}</td>`;
-                // For each selected element
                 selectedElements.forEach(element => {
-                    // For each station
                     stations.forEach(station => {
-                        // Find the report for this timestamp and station
-                        const report = decodedData[station].find(r => r.dateTime === timestamp);
+                        const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                         if (report) {
                             let displayValue = '-';
-                            // Handle combined elements
                             if (element === 'tempDew') {
                                 if (report.temp !== null && report.dewpoint !== null) {
                                     displayValue = `${report.temp}/${report.dewpoint}`;
@@ -627,7 +681,6 @@
                                     }
                                 }
                             } else {
-                                // Handle single elements
                                 const value = report[element];
                                 if (value !== null && value !== undefined) {
                                     displayValue = value;
@@ -647,12 +700,10 @@
         function initHoursSlider() {
             const slider = document.getElementById('hoursSlider');
             const valueDisplay = document.getElementById('hoursValue');
-            // Set initial value based on localStorage or default to 12
             const savedHours = localStorage.getItem('metarHours') || '12';
             const index = hoursOptions.indexOf(savedHours);
-            slider.value = index >= 0 ? index : 4; // Default to index 4 (12 hours)
+            slider.value = index >= 0 ? index : 4;
             valueDisplay.textContent = savedHours + ' hours';
-            // Update on slider change
             slider.addEventListener('input', function() {
                 const selectedHours = hoursOptions[this.value];
                 valueDisplay.textContent = selectedHours + ' hours';
@@ -664,18 +715,14 @@
         function initElementSelectors() {
             const element1Select = document.getElementById('element1');
             const element2Select = document.getElementById('element2');
-            
             const savedElement1 = localStorage.getItem('metarElement1') || 'windDir';
             const savedElement2 = localStorage.getItem('metarElement2') || 'windSpdGust';
-            
             element1Select.value = savedElement1;
             element2Select.value = savedElement2;
-            
             element1Select.addEventListener('change', function() {
                 localStorage.setItem('metarElement1', this.value);
                 fetchWeatherData();
             });
-            
             element2Select.addEventListener('change', function() {
                 localStorage.setItem('metarElement2', this.value);
                 fetchWeatherData();
@@ -683,7 +730,7 @@
         }
         // Initialize airport checkboxes from localStorage
         function initAirportCheckboxes() {
-            const airports = ['vhhh', 'vmmc', 'zgsz'];
+            const airports = ['vhhh', 'vmmc'];
             airports.forEach(airport => {
                 const checkbox = document.getElementById(`airport-${airport}`);
                 const savedValue = localStorage.getItem(`metarAirport_${airport}`);
@@ -700,29 +747,45 @@
         function initDisplayToggles() {
             const rawToggle = document.getElementById('toggle-raw');
             const tableToggle = document.getElementById('toggle-table');
-            
             const savedRaw = localStorage.getItem('metarDisplayRaw');
             const savedTable = localStorage.getItem('metarDisplayTable');
-            
             if (savedRaw !== null) {
                 rawToggle.checked = savedRaw === 'true';
             }
             if (savedTable !== null) {
                 tableToggle.checked = savedTable === 'true';
             }
-            
-            // Apply initial state
             document.getElementById('rawTextSection').style.display = rawToggle.checked ? 'block' : 'none';
             document.getElementById('decodedTableSection').style.display = tableToggle.checked ? 'block' : 'none';
-            
             rawToggle.addEventListener('change', function() {
                 localStorage.setItem('metarDisplayRaw', this.checked);
                 document.getElementById('rawTextSection').style.display = this.checked ? 'block' : 'none';
             });
-            
             tableToggle.addEventListener('change', function() {
                 localStorage.setItem('metarDisplayTable', this.checked);
                 document.getElementById('decodedTableSection').style.display = this.checked ? 'block' : 'none';
+            });
+        }
+        // Initialize custom airport input from localStorage
+        function initCustomAirport() {
+            const customInput = document.getElementById('custom-airport-input');
+            const savedCustom = localStorage.getItem('metarCustomAirport') || 'ZGSZ';
+            customInput.value = savedCustom;
+            customInput.addEventListener('input', function() {
+                const value = this.value.trim().toUpperCase();
+                localStorage.setItem('metarCustomAirport', value);
+                fetchWeatherData();
+            });
+            customInput.addEventListener('blur', function() {
+                const value = this.value.trim().toUpperCase();
+                if (value && /^[A-Z0-9]{4}$/.test(value)) {
+                    this.value = value;
+                    localStorage.setItem('metarCustomAirport', value);
+                    fetchWeatherData();
+                } else if (value === '') {
+                    localStorage.setItem('metarCustomAirport', '');
+                    fetchWeatherData();
+                }
             });
         }
         // CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
@@ -736,8 +799,19 @@
             const selectedAirports = [];
             if (document.getElementById('airport-vhhh').checked) selectedAirports.push('VHHH');
             if (document.getElementById('airport-vmmc').checked) selectedAirports.push('VMMC');
-            if (document.getElementById('airport-zgsz').checked) selectedAirports.push('ZGSZ');
-            // Update axis labels
+            const customAirport = document.getElementById('custom-airport-input').value.trim().toUpperCase();
+            if (customAirport && /^[A-Z0-9]{4}$/.test(customAirport)) {
+                selectedAirports.push(customAirport);
+            }
+            if (selectedAirports.length === 0) {
+                if (chart) { chart.destroy(); chart = null; }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('Select at least one airport', canvas.width / 2, canvas.height / 2);
+                return;
+            }
             const elementLabels = {
                 windDir: 'Wind Direction (°)',
                 windSpdGust: 'Wind Speed/Gust (knots)',
@@ -750,7 +824,6 @@
             };
             document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
             document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
-            // Only 'weather' and 'rvr' are non-plottable; cloud is now plottable!
             const nonPlottableElements = ['weather', 'rvr'];
             const canPlotElement1 = !nonPlottableElements.includes(element1);
             const canPlotElement2 = !nonPlottableElements.includes(element2);
@@ -763,7 +836,6 @@
                 ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
                 return;
             }
-            // Get all timestamps from selected airports only
             const allTimestamps = new Set();
             selectedAirports.forEach(station => {
                 if (decodedData[station]) {
@@ -782,7 +854,6 @@
                 ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
                 return;
             }
-            // Helper to extract cloud min/max
             function extractCloudValues(cloudStr) {
                 if (!cloudStr) return { min: null, max: null };
                 const cloudHeights = [];
@@ -802,13 +873,13 @@
             const colorMap = {
                 'VHHH': { main: 'rgba(51, 102, 204, 1)', secondary: 'rgba(51, 102, 204, 0.7)' },
                 'VMMC': { main: 'rgba(220, 57, 18, 1)', secondary: 'rgba(220, 57, 18, 0.7)' },
-                'ZGSZ': { main: 'rgba(255, 153, 0, 1)', secondary: 'rgba(255, 153, 0, 0.7)' }
+                'DEFAULT': { main: 'rgba(255, 153, 0, 1)', secondary: 'rgba(255, 153, 0, 0.7)' }
             };
-            // Process Element 1 (left axis) - only for selected airports
+            // Process Element 1 (left axis)
             if (canPlotElement1) {
                 selectedAirports.forEach(station => {
+                    const color = colorMap[station] || colorMap['DEFAULT'];
                     if (element1 === 'cloud') {
-                        // Handle cloud: plot min and max
                         const minData = [], maxData = [];
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
@@ -823,8 +894,8 @@
                             datasets.push({
                                 label: `${station} - Lowest Cloud`,
                                 data: minData,
-                                borderColor: colorMap[station].main,
-                                backgroundColor: colorMap[station].main,
+                                borderColor: color.main,
+                                backgroundColor: color.main,
                                 yAxisID: 'left-y-axis',
                                 borderWidth: 2,
                                 pointRadius: 4
@@ -834,8 +905,8 @@
                             datasets.push({
                                 label: `${station} - Highest Cloud`,
                                 data: maxData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
+                                borderColor: color.secondary,
+                                backgroundColor: color.secondary,
                                 borderDash: [5, 5],
                                 yAxisID: 'left-y-axis',
                                 borderWidth: 2,
@@ -843,7 +914,6 @@
                             });
                         }
                     } else {
-                        // Handle non-cloud elements
                         const data = [];
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
@@ -867,7 +937,6 @@
                             }
                         });
                         if (data.length > 0) {
-                            // Use proper label based on element
                             let baseLabel = elementLabels[element1].split(' ')[0];
                             if (element1 === 'windSpdGust') baseLabel = 'Wind Spd';
                             else if (element1 === 'tempDew') baseLabel = 'Temp';
@@ -875,14 +944,13 @@
                             datasets.push({
                                 label: `${station} - ${baseLabel}`,
                                 data,
-                                borderColor: colorMap[station].main,
-                                backgroundColor: colorMap[station].main,
+                                borderColor: color.main,
+                                backgroundColor: color.main,
                                 yAxisID: 'left-y-axis',
                                 borderWidth: 2,
                                 pointRadius: 4
                             });
                         }
-                        // Add secondary series for combined elements (only if not cloud)
                         if (element1 === 'windSpdGust') {
                             const gustData = [];
                             sortedTimestamps.forEach(timestamp => {
@@ -895,8 +963,8 @@
                                 datasets.push({
                                     label: `${station} - Gust`,
                                     data: gustData,
-                                    borderColor: colorMap[station].secondary,
-                                    backgroundColor: colorMap[station].secondary,
+                                    borderColor: color.secondary,
+                                    backgroundColor: color.secondary,
                                     borderDash: [5, 5],
                                     yAxisID: 'left-y-axis',
                                     borderWidth: 2,
@@ -915,8 +983,8 @@
                                 datasets.push({
                                     label: `${station} - Dew Point`,
                                     data: dewData,
-                                    borderColor: colorMap[station].secondary,
-                                    backgroundColor: colorMap[station].secondary,
+                                    borderColor: color.secondary,
+                                    backgroundColor: color.secondary,
                                     borderDash: [5, 5],
                                     yAxisID: 'left-y-axis',
                                     borderWidth: 2,
@@ -935,8 +1003,8 @@
                                 datasets.push({
                                     label: `${station} - Dir Visibility`,
                                     data: dirVisData,
-                                    borderColor: colorMap[station].secondary,
-                                    backgroundColor: colorMap[station].secondary,
+                                    borderColor: color.secondary,
+                                    backgroundColor: color.secondary,
                                     borderDash: [5, 5],
                                     yAxisID: 'left-y-axis',
                                     borderWidth: 2,
@@ -947,9 +1015,10 @@
                     }
                 });
             }
-            // Process Element 2 (right axis) — same logic as above, only for selected airports
+            // Process Element 2 (right axis)
             if (canPlotElement2) {
                 selectedAirports.forEach(station => {
+                    const color = colorMap[station] || colorMap['DEFAULT'];
                     if (element2 === 'cloud') {
                         const minData = [], maxData = [];
                         sortedTimestamps.forEach(timestamp => {
@@ -965,8 +1034,8 @@
                             datasets.push({
                                 label: `${station} - Lowest Cloud`,
                                 data: minData,
-                                borderColor: colorMap[station].main,
-                                backgroundColor: colorMap[station].main,
+                                borderColor: color.main,
+                                backgroundColor: color.main,
                                 yAxisID: 'right-y-axis',
                                 borderWidth: 2,
                                 pointRadius: 4
@@ -976,8 +1045,8 @@
                             datasets.push({
                                 label: `${station} - Highest Cloud`,
                                 data: maxData,
-                                borderColor: colorMap[station].secondary,
-                                backgroundColor: colorMap[station].secondary,
+                                borderColor: color.secondary,
+                                backgroundColor: color.secondary,
                                 borderDash: [5, 5],
                                 yAxisID: 'right-y-axis',
                                 borderWidth: 2,
@@ -1015,8 +1084,8 @@
                             datasets.push({
                                 label: `${station} - ${baseLabel}`,
                                 data,
-                                borderColor: colorMap[station].main,
-                                backgroundColor: colorMap[station].main,
+                                borderColor: color.main,
+                                backgroundColor: color.main,
                                 yAxisID: 'right-y-axis',
                                 borderWidth: 2,
                                 pointRadius: 4
@@ -1034,8 +1103,8 @@
                                 datasets.push({
                                     label: `${station} - Gust`,
                                     data: gustData,
-                                    borderColor: colorMap[station].secondary,
-                                    backgroundColor: colorMap[station].secondary,
+                                    borderColor: color.secondary,
+                                    backgroundColor: color.secondary,
                                     borderDash: [5, 5],
                                     yAxisID: 'right-y-axis',
                                     borderWidth: 2,
@@ -1054,8 +1123,8 @@
                                 datasets.push({
                                     label: `${station} - Dew Point`,
                                     data: dewData,
-                                    borderColor: colorMap[station].secondary,
-                                    backgroundColor: colorMap[station].secondary,
+                                    borderColor: color.secondary,
+                                    backgroundColor: color.secondary,
                                     borderDash: [5, 5],
                                     yAxisID: 'right-y-axis',
                                     borderWidth: 2,
@@ -1074,8 +1143,8 @@
                                 datasets.push({
                                     label: `${station} - Dir Visibility`,
                                     data: dirVisData,
-                                    borderColor: colorMap[station].secondary,
-                                    backgroundColor: colorMap[station].secondary,
+                                    borderColor: color.secondary,
+                                    backgroundColor: color.secondary,
                                     borderDash: [5, 5],
                                     yAxisID: 'right-y-axis',
                                     borderWidth: 2,
@@ -1142,19 +1211,18 @@
                 }
             });
         }
-        // Add event listeners to select elements and airport checkboxes
+        // Add event listeners
         document.getElementById('airport-vhhh').addEventListener('change', fetchWeatherData);
         document.getElementById('airport-vmmc').addEventListener('change', fetchWeatherData);
-        document.getElementById('airport-zgsz').addEventListener('change', fetchWeatherData);
         // Initialize the page
         window.addEventListener('load', function() {
             initHoursSlider();
             initElementSelectors();
             initAirportCheckboxes();
             initDisplayToggles();
+            initCustomAirport();
             fetchWeatherData();
         });
-        // Handle window resize
         window.addEventListener('resize', function() {
             if (chart) {
                 chart.resize();
