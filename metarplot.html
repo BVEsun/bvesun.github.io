@@ -139,7 +139,7 @@
         }
         .toggle-section {
             display: flex;
-            align-items: center;
+            align-items-center;
             gap: 8px;
         }
     </style>
@@ -187,7 +187,7 @@
         </table>
     </div>
     <div id="chartContainer">
-        <div class="chart-title">METAR Data Visualization</div>
+        <div class="chart-title">METAR Data Visualization (UTC)</div>
         <div class="y-axis-label left-y-axis-label" id="leftAxisLabel">Element 1</div>
         <div class="y-axis-label right-y-axis-label" id="rightAxisLabel">Element 2</div>
         <canvas id="chart"></canvas>
@@ -440,7 +440,7 @@
                 document.getElementById('metar-custom').textContent = `Error: ${error.message}`;
                 document.getElementById('taf-custom').textContent = `Error: ${error.message}`;
                 document.getElementById('metarTable').getElementsByTagName('tbody')[0].innerHTML = 
-                    `<tr><td colspan="100%" class="error">Error loading decoded data: ${error.message}</td></tr>`;
+                    `<tr><td colspan="100%" class="error">Error loading decoded  ${error.message}</td></tr>`;
                 // Draw error on chart
                 if (chart) {
                     chart.destroy();
@@ -515,7 +515,7 @@
             }
             if (!dateTime) return null;
             // Use comprehensive regex to extract all METAR components
-            const metarRegex = /(?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+(?:COR\s+)?([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))\s*(?:\s+(\d{3}V\d{3}))?\s+(\d{4}|CAVOK|\d+SM)(?:\s+(\d{4}[NSEW]{1,3}))?(?:\s+((?:R\d{2}[LRC]?\/[PM]?\d{4}(?:V[PM]?\d{4})?[NDU]?)(?:\s+R\d{2}[LRC]?\/[PM]?\d{4}(?:V[PM]?\d{4})?[NDU]?)*))?\s*((?:(?:[+-]?[A-Z]{2,6})(?![A-Z]*\d)\s*)*)\s*((?:(?:[A-Z]{2,3}\d{3}[A-Z]*)\s*)*)\s*(?:([M]?\d{2})\/([M]?\d{2}))?\s*(?:(?:Q|A)(\d{4}))?/;
+            const metarRegex = /(?:METAR|SPECI)?\s+[A-Z]{4}\s+(\d{6})Z\s+(?:COR|AUTO\s+)?([0-9VRB]{3,5}(?:G\d{2,3})?(?:KT|MPS))\s*(?:\s+(\d{3}V\d{3}))?\s+(\d{4}|CAVOK|\d+SM)(?:\s+(\d{4}[NSEW]{1,3}))?(?:\s+((?:R\d{2}[LRC]?\/[PM]?\d{4}(?:V[PM]?\d{4})?[NDU]?)(?:\s+R\d{2}[LRC]?\/[PM]?\d{4}(?:V[PM]?\d{4})?[NDU]?)*))?\s*((?:(?:[+-]?[A-Z]{2,6})(?![A-Z]*\d)\s*)*)\s*((?:(?:[A-Z]{2,3}\d{3}[A-Z]*)\s*)*)\s*(?:([M]?\d{2})\/([M]?\d{2}))?\s*(?:(?:Q|A)(\d{4}))?/;
             const match = metar.match(metarRegex);
             let windDir = null, windSpd = null, gust = null;
             let visibility = null, dirVisibility = null, weather = null, cloud = null, temp = null, dewpoint = null, qnh = null, rvr = null;
@@ -802,7 +802,7 @@
                 }
             });
         }
-        // CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
+        // CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS (UTC)
         function drawChart(decodedData) {
             if (!decodedData) return;
             const canvas = document.getElementById('chart');
@@ -1195,7 +1195,12 @@
                                 displayFormats: { hour: 'dd HH:mm' },
                                 tooltipFormat: 'MMM dd, HH:mm'
                             },
-                            title: { display: true, text: 'Time (UTC)' }
+                            title: { display: true, text: 'Time (UTC)' },
+                            adapters: {
+                                date: {
+                                    zone: 'UTC'
+                                }
+                            }
                         },
                         'left-y-axis': {
                             type: 'linear',
@@ -1211,7 +1216,7 @@
                     },
                     plugins: {
                         legend: { position: 'top' },
-                        title: { display: true, text: 'METAR Data Visualization' },
+                        title: { display: true, text: 'METAR Data Visualization (UTC)' },
                         tooltip: {
                             callbacks: {
                                 title: function(tooltipItems) {
@@ -1231,7 +1236,7 @@
         document.getElementById('airport-vmmc').addEventListener('change', fetchWeatherData);
         document.getElementById('airport-custom').addEventListener('change', fetchWeatherData);
         // Initialize the page
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function() {F
             initHoursSlider();
             initElementSelectors();
             initAirportCheckboxes();
