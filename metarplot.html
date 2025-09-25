@@ -80,7 +80,7 @@
         }
         .hours-slider-container {
             margin: 30px 0;
-            padding: 15px;
+            padding: 20px;
             background: #f4f4f4;
             border-radius: 5px;
             text-align: center;
@@ -102,6 +102,13 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             padding: 15px;
+        }
+        @media (min-width: 769px) {
+            #chartContainer {
+                height: 500px;
+                max-width: 900px;
+                margin: 30px auto;
+            }
         }
         .chart-title {
             text-align: center;
@@ -141,6 +148,52 @@
             display: flex;
             align-items-center;
             gap: 8px;
+        }
+        .controls-section {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 180px;
+        }
+        .control-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .airport-controls {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .airport-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .element-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .element-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .element-control label {
+            margin-bottom: 5px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -194,16 +247,69 @@
     </div>
     <div class="hours-slider-container">
         <h3>Hours of Data to Display</h3>
+        
+        <!-- Airport Selection -->
+        <div class="controls-section">
+            <div class="control-group">
+                <label>Airports:</label>
+                <div class="airport-controls">
+                    <div class="airport-item">
+                        <input class="form-check-input" type="checkbox" id="airport-vhhh" value="VHHH" checked>
+                        <label class="form-check-label" for="airport-vhhh">VHHH</label>
+                    </div>
+                    <div class="airport-item">
+                        <input class="form-check-input" type="checkbox" id="airport-vmmc" value="VMMC" checked>
+                        <label class="form-check-label" for="airport-vmmc">VMMC</label>
+                    </div>
+                    <div class="airport-item">
+                        <input class="form-check-input" type="checkbox" id="airport-custom" checked>
+                        <input type="text" id="custom-airport-input" class="form-control form-control-sm" placeholder="e.g. ZGSZ" style="width: 80px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Element Selection -->
+        <div class="controls-section">
+            <div class="element-control">
+                <label for="element1">Element 1:</label>
+                <select id="element1" class="form-select form-select-sm">
+                    <option value="windDir">Wind Dir</option>
+                    <option value="windSpdGust">Wind Spd & Gust</option>
+                    <option value="visibilityDir">Visibility & Dir Visibility</option>
+                    <option value="rvr">RVR</option>
+                    <option value="weather">Weather</option>
+                    <option value="cloud">Cloud</option>
+                    <option value="tempDew">Temp & Dew Point</option>
+                    <option value="qnh">QNH</option>
+                </select>
+            </div>
+            <div class="element-control">
+                <label for="element2">Element 2:</label>
+                <select id="element2" class="form-select form-select-sm">
+                    <option value="windDir">Wind Dir</option>
+                    <option value="windSpdGust">Wind Spd & Gust</option>
+                    <option value="visibilityDir">Visibility & Dir Visibility</option>
+                    <option value="rvr">RVR</option>
+                    <option value="weather">Weather</option>
+                    <option value="cloud">Cloud</option>
+                    <option value="tempDew">Temp & Dew Point</option>
+                    <option value="qnh">QNH</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Hours Slider -->
         <div class="slider-value" id="hoursValue">12 hours</div>
         <input type="range" min="0" max="6" class="slider" id="hoursSlider">
         <div>1&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;48</div>
     </div>
-    <!-- Fixed Bootstrap Navbar at Bottom -->
+    <!-- Fixed Bootstrap Navbar at Bottom - Only Display Toggles -->
     <nav class="navbar navbar-light bg-light fixed-bottom-navbar">
         <div class="container-fluid">
-            <div class="d-flex flex-wrap align-items-center w-100">
-                <!-- Display Toggles -->
-                <div class="me-4 toggle-section">
+            <div class="d-flex flex-wrap align-items-center w-100 justify-content-center">
+                <!-- Display Toggles Only -->
+                <div class="toggle-section">
                     <span class="fw-bold me-2">Display:</span>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="checkbox" id="toggle-raw" checked>
@@ -212,51 +318,6 @@
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="checkbox" id="toggle-table" checked>
                         <label class="form-check-label" for="toggle-table">Decoded Table</label>
-                    </div>
-                </div>
-                <!-- Airport Selection -->
-                <div class="me-4 d-flex align-items-center">
-                    <span class="fw-bold me-2">Airports:</span>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="airport-vhhh" value="VHHH" checked>
-                        <label class="form-check-label" for="airport-vhhh">VHHH</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="airport-vmmc" value="VMMC" checked>
-                        <label class="form-check-label" for="airport-vmmc">VMMC</label>
-                    </div>
-                    <div class="form-check form-check-inline ms-2">
-                        <input class="form-check-input" type="checkbox" id="airport-custom" checked>
-                        <input type="text" id="custom-airport-input" class="form-control form-control-sm" placeholder="e.g. ZGSZ" style="width: 80px; display: inline-block; margin-left: 4px;">
-                    </div>
-                </div>
-                <!-- Element Selection -->
-                <div class="d-flex align-items-center">
-                    <div class="me-3">
-                        <label for="element1" class="form-label mb-0 me-2">Element 1:</label>
-                        <select id="element1" class="form-select form-select-sm">
-                            <option value="windDir">Wind Dir</option>
-                            <option value="windSpdGust">Wind Spd & Gust</option>
-                            <option value="visibilityDir">Visibility & Dir Visibility</option>
-                            <option value="rvr">RVR</option>
-                            <option value="weather">Weather</option>
-                            <option value="cloud">Cloud</option>
-                            <option value="tempDew">Temp & Dew Point</option>
-                            <option value="qnh">QNH</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="element2" class="form-label mb-0 me-2">Element 2:</label>
-                        <select id="element2" class="form-select form-select-sm">
-                            <option value="windDir">Wind Dir</option>
-                            <option value="windSpdGust">Wind Spd & Gust</option>
-                            <option value="visibilityDir">Visibility & Dir Visibility</option>
-                            <option value="rvr">RVR</option>
-                            <option value="weather">Weather</option>
-                            <option value="cloud">Cloud</option>
-                            <option value="tempDew">Temp & Dew Point</option>
-                            <option value="qnh">QNH</option>
-                        </select>
                     </div>
                 </div>
             </div>
@@ -268,22 +329,36 @@
         const hoursOptions = ['1', '2', '3', '6', '12', '24', '48'];
         // Chart variables
         let chart = null;
-        // Helper function to extract cloud values
+        // Helper function to extract cloud values - modified to get scattered or above cloud height
         function extractCloudValues(cloudStr) {
-            if (!cloudStr) return { min: null, max: null };
-            // Extract all numeric cloud heights (3 digits after cloud cover code)
-            const cloudHeights = [];
-            const regex = /[A-Z]{3}(\d{3})/g;
+            if (!cloudStr) return { min: null, scatteredOrAbove: null };
+            // Extract all cloud layers with their coverage and height
+            const cloudLayers = [];
+            const regex = /([A-Z]{3})(\d{3})/g;
             let match;
             while ((match = regex.exec(cloudStr)) !== null) {
-                const height = parseInt(match[1]);
-                cloudHeights.push(height);
+                const coverage = match[1];
+                const height = parseInt(match[2]);
+                cloudLayers.push({ coverage, height });
             }
-            if (cloudHeights.length === 0) return { min: null, max: null };
-            // Find min and max cloud heights
-            const minHeight = Math.min(...cloudHeights);
-            const maxHeight = Math.max(...cloudHeights);
-            return { min: minHeight, max: maxHeight };
+            if (cloudLayers.length === 0) return { min: null, scatteredOrAbove: null };
+            
+            // Find minimum cloud height (any coverage)
+            const minHeight = Math.min(...cloudLayers.map(layer => layer.height));
+            
+            // Find the lowest cloud layer that is SCT (scattered) or higher coverage
+            // Coverage codes: FEW=1-2/8, SCT=3-4/8, BKN=5-7/8, OVC=8/8
+            // We want SCT, BKN, or OVC (3+ oktas)
+            const scatteredOrAboveLayers = cloudLayers.filter(layer => 
+                layer.coverage === 'SCT' || layer.coverage === 'BKN' || layer.coverage === 'OVC'
+            );
+            
+            let scatteredOrAboveHeight = null;
+            if (scatteredOrAboveLayers.length > 0) {
+                scatteredOrAboveHeight = Math.min(...scatteredOrAboveLayers.map(layer => layer.height));
+            }
+            
+            return { min: minHeight, scatteredOrAbove: scatteredOrAboveHeight };
         }
         // Function to parse DDHHMM timestamp to Date object (UTC)
         function parseTimestamp(timestamp) {
@@ -745,7 +820,6 @@
                     fetchWeatherData();
                 });
             });
-            
             // Custom airport checkbox
             const customCheckbox = document.getElementById('airport-custom');
             const savedCustomChecked = localStorage.getItem('metarAirport_custom');
@@ -870,19 +944,34 @@
                 return;
             }
             function extractCloudValues(cloudStr) {
-                if (!cloudStr) return { min: null, max: null };
-                const cloudHeights = [];
-                const regex = /[A-Z]{3}(\d{3})/g;
+                if (!cloudStr) return { min: null, scatteredOrAbove: null };
+                // Extract all cloud layers with their coverage and height
+                const cloudLayers = [];
+                const regex = /([A-Z]{3})(\d{3})/g;
                 let match;
                 while ((match = regex.exec(cloudStr)) !== null) {
-                    const height = parseInt(match[1]);
-                    cloudHeights.push(height);
+                    const coverage = match[1];
+                    const height = parseInt(match[2]);
+                    cloudLayers.push({ coverage, height });
                 }
-                if (cloudHeights.length === 0) return { min: null, max: null };
-                return {
-                    min: Math.min(...cloudHeights),
-                    max: Math.max(...cloudHeights)
-                };
+                if (cloudLayers.length === 0) return { min: null, scatteredOrAbove: null };
+                
+                // Find minimum cloud height (any coverage)
+                const minHeight = Math.min(...cloudLayers.map(layer => layer.height));
+                
+                // Find the lowest cloud layer that is SCT (scattered) or higher coverage
+                // Coverage codes: FEW=1-2/8, SCT=3-4/8, BKN=5-7/8, OVC=8/8
+                // We want SCT, BKN, or OVC (3+ oktas)
+                const scatteredOrAboveLayers = cloudLayers.filter(layer => 
+                    layer.coverage === 'SCT' || layer.coverage === 'BKN' || layer.coverage === 'OVC'
+                );
+                
+                let scatteredOrAboveHeight = null;
+                if (scatteredOrAboveLayers.length > 0) {
+                    scatteredOrAboveHeight = Math.min(...scatteredOrAboveLayers.map(layer => layer.height));
+                }
+                
+                return { min: minHeight, scatteredOrAbove: scatteredOrAboveHeight };
             }
             const datasets = [];
             const colorMap = {
@@ -895,14 +984,14 @@
                 selectedAirports.forEach(station => {
                     const color = colorMap[station] || colorMap['DEFAULT'];
                     if (element1 === 'cloud') {
-                        const minData = [], maxData = [];
+                        const minData = [], scatteredData = [];
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.cloud) {
-                                const { min, max } = extractCloudValues(report.cloud);
+                                const { min, scatteredOrAbove } = extractCloudValues(report.cloud);
                                 const x = parseTimestamp(timestamp);
                                 if (min !== null) minData.push({x, y: min});
-                                if (max !== null) maxData.push({x, y: max});
+                                if (scatteredOrAbove !== null) scatteredData.push({x, y: scatteredOrAbove});
                             }
                         });
                         if (minData.length > 0) {
@@ -916,10 +1005,10 @@
                                 pointRadius: 4
                             });
                         }
-                        if (maxData.length > 0) {
+                        if (scatteredData.length > 0) {
                             datasets.push({
-                                label: `${station} - Highest Cloud`,
-                                data: maxData,
+                                label: `${station} - Scattered or Above`,
+                                data: scatteredData,
                                 borderColor: color.secondary,
                                 backgroundColor: color.secondary,
                                 borderDash: [5, 5],
@@ -1035,14 +1124,14 @@
                 selectedAirports.forEach(station => {
                     const color = colorMap[station] || colorMap['DEFAULT'];
                     if (element2 === 'cloud') {
-                        const minData = [], maxData = [];
+                        const minData = [], scatteredData = [];
                         sortedTimestamps.forEach(timestamp => {
                             const report = decodedData[station]?.find(r => r.dateTime === timestamp);
                             if (report && report.cloud) {
-                                const { min, max } = extractCloudValues(report.cloud);
+                                const { min, scatteredOrAbove } = extractCloudValues(report.cloud);
                                 const x = parseTimestamp(timestamp);
                                 if (min !== null) minData.push({x, y: min});
-                                if (max !== null) maxData.push({x, y: max});
+                                if (scatteredOrAbove !== null) scatteredData.push({x, y: scatteredOrAbove});
                             }
                         });
                         if (minData.length > 0) {
@@ -1056,10 +1145,10 @@
                                 pointRadius: 4
                             });
                         }
-                        if (maxData.length > 0) {
+                        if (scatteredData.length > 0) {
                             datasets.push({
-                                label: `${station} - Highest Cloud`,
-                                data: maxData,
+                                label: `${station} - Scattered or Above`,
+                                data: scatteredData,
                                 borderColor: color.secondary,
                                 backgroundColor: color.secondary,
                                 borderDash: [5, 5],
@@ -1179,6 +1268,38 @@
                 ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
                 return;
             }
+            // Define fixed Y-axis ranges for specific elements
+            const fixedRanges = {
+                windDir: { min: 0, max: 360 },
+                visibilityDir: { min: 0, max: 10000 },
+                cloud: { min: 0, max: 50 }
+            };
+            
+            // Configure Y-axis options with fixed ranges where applicable
+            const leftYAxisOptions = {
+                type: 'linear',
+                position: 'left',
+                title: { display: true, text: elementLabels[element1] || 'Element 1' }
+            };
+            
+            const rightYAxisOptions = {
+                type: 'linear',
+                position: 'right',
+                title: { display: true, text: elementLabels[element2] || 'Element 2' },
+                grid: { drawOnChartArea: false }
+            };
+            
+            // Apply fixed ranges if the element has one defined
+            if (fixedRanges[element1]) {
+                leftYAxisOptions.min = fixedRanges[element1].min;
+                leftYAxisOptions.max = fixedRanges[element1].max;
+            }
+            
+            if (fixedRanges[element2]) {
+                rightYAxisOptions.min = fixedRanges[element2].min;
+                rightYAxisOptions.max = fixedRanges[element2].max;
+            }
+            
             if (chart) chart.destroy();
             chart = new Chart(ctx, {
                 type: 'line',
@@ -1202,17 +1323,8 @@
                                 }
                             }
                         },
-                        'left-y-axis': {
-                            type: 'linear',
-                            position: 'left',
-                            title: { display: true, text: elementLabels[element1] || 'Element 1' }
-                        },
-                        'right-y-axis': {
-                            type: 'linear',
-                            position: 'right',
-                            title: { display: true, text: elementLabels[element2] || 'Element 2' },
-                            grid: { drawOnChartArea: false }
-                        }
+                        'left-y-axis': leftYAxisOptions,
+                        'right-y-axis': rightYAxisOptions
                     },
                     plugins: {
                         legend: { position: 'top' },
