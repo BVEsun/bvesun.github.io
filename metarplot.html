@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -138,34 +137,41 @@
             right: 0;
             z-index: 1000;
         }
+        .toggle-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
     <h1>METAR and TAF for VHHH, VMMC, ZGSZ</h1>
-    <div class="container">
-        <div class="column">
-            <h2>VHHH (Hong Kong)</h2>
-            <h3>METAR/SPECI</h3>
-            <pre id="metar-vhhh">Loading METAR data...</pre>
-            <h3>TAF</h3>
-            <pre id="taf-vhhh">Loading TAF data...</pre>
-        </div>
-        <div class="column">
-            <h2>VMMC (Macau)</h2>
-            <h3>METAR/SPECI</h3>
-            <pre id="metar-vmmc">Loading METAR data...</pre>
-            <h3>TAF</h3>
-            <pre id="taf-vmmc">Loading TAF data...</pre>
-        </div>
-        <div class="column">
-            <h2>ZGSZ (Shenzhen)</h2>
-            <h3>METAR/SPECI</h3>
-            <pre id="metar-zgsz">Loading METAR data...</pre>
-            <h3>TAF</h3>
-            <pre id="taf-zgsz">Loading TAF data...</pre>
+    <div id="rawTextSection">
+        <div class="container">
+            <div class="column">
+                <h2>VHHH (Hong Kong)</h2>
+                <h3>METAR/SPECI</h3>
+                <pre id="metar-vhhh">Loading METAR data...</pre>
+                <h3>TAF</h3>
+                <pre id="taf-vhhh">Loading TAF data...</pre>
+            </div>
+            <div class="column">
+                <h2>VMMC (Macau)</h2>
+                <h3>METAR/SPECI</h3>
+                <pre id="metar-vmmc">Loading METAR data...</pre>
+                <h3>TAF</h3>
+                <pre id="taf-vmmc">Loading TAF data...</pre>
+            </div>
+            <div class="column">
+                <h2>ZGSZ (Shenzhen)</h2>
+                <h3>METAR/SPECI</h3>
+                <pre id="metar-zgsz">Loading METAR data...</pre>
+                <h3>TAF</h3>
+                <pre id="taf-zgsz">Loading TAF data...</pre>
+            </div>
         </div>
     </div>
-    <div id="decodedTable">
+    <div id="decodedTableSection">
         <h3>Decoded METAR/SPECI Data</h3>
         <table id="metarTable">
             <thead>
@@ -192,11 +198,22 @@
         <input type="range" min="0" max="6" class="slider" id="hoursSlider">
         <div>1&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;&nbsp;&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;48</div>
     </div>
-
     <!-- Fixed Bootstrap Navbar at Bottom -->
     <nav class="navbar navbar-light bg-light fixed-bottom-navbar">
         <div class="container-fluid">
             <div class="d-flex flex-wrap align-items-center w-100">
+                <!-- Display Toggles -->
+                <div class="me-4 toggle-section">
+                    <span class="fw-bold me-2">Display:</span>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="toggle-raw" checked>
+                        <label class="form-check-label" for="toggle-raw">Raw Text</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="toggle-table" checked>
+                        <label class="form-check-label" for="toggle-table">Decoded Table</label>
+                    </div>
+                </div>
                 <!-- Airport Selection -->
                 <div class="me-4">
                     <span class="fw-bold me-2">Airports:</span>
@@ -213,7 +230,6 @@
                         <label class="form-check-label" for="airport-zgsz">ZGSZ</label>
                     </div>
                 </div>
-
                 <!-- Element Selection -->
                 <div class="d-flex align-items-center">
                     <div class="me-3">
@@ -246,7 +262,6 @@
             </div>
         </div>
     </nav>
-
     <script>
         // Get hours from localStorage or default to 12
         let selectedHours = localStorage.getItem('metarHours') || '12';
@@ -645,7 +660,71 @@
                 fetchWeatherData();
             });
         }
-
+        // Initialize element selectors from localStorage
+        function initElementSelectors() {
+            const element1Select = document.getElementById('element1');
+            const element2Select = document.getElementById('element2');
+            
+            const savedElement1 = localStorage.getItem('metarElement1') || 'windDir';
+            const savedElement2 = localStorage.getItem('metarElement2') || 'windSpdGust';
+            
+            element1Select.value = savedElement1;
+            element2Select.value = savedElement2;
+            
+            element1Select.addEventListener('change', function() {
+                localStorage.setItem('metarElement1', this.value);
+                fetchWeatherData();
+            });
+            
+            element2Select.addEventListener('change', function() {
+                localStorage.setItem('metarElement2', this.value);
+                fetchWeatherData();
+            });
+        }
+        // Initialize airport checkboxes from localStorage
+        function initAirportCheckboxes() {
+            const airports = ['vhhh', 'vmmc', 'zgsz'];
+            airports.forEach(airport => {
+                const checkbox = document.getElementById(`airport-${airport}`);
+                const savedValue = localStorage.getItem(`metarAirport_${airport}`);
+                if (savedValue !== null) {
+                    checkbox.checked = savedValue === 'true';
+                }
+                checkbox.addEventListener('change', function() {
+                    localStorage.setItem(`metarAirport_${airport}`, this.checked);
+                    fetchWeatherData();
+                });
+            });
+        }
+        // Initialize display toggles from localStorage
+        function initDisplayToggles() {
+            const rawToggle = document.getElementById('toggle-raw');
+            const tableToggle = document.getElementById('toggle-table');
+            
+            const savedRaw = localStorage.getItem('metarDisplayRaw');
+            const savedTable = localStorage.getItem('metarDisplayTable');
+            
+            if (savedRaw !== null) {
+                rawToggle.checked = savedRaw === 'true';
+            }
+            if (savedTable !== null) {
+                tableToggle.checked = savedTable === 'true';
+            }
+            
+            // Apply initial state
+            document.getElementById('rawTextSection').style.display = rawToggle.checked ? 'block' : 'none';
+            document.getElementById('decodedTableSection').style.display = tableToggle.checked ? 'block' : 'none';
+            
+            rawToggle.addEventListener('change', function() {
+                localStorage.setItem('metarDisplayRaw', this.checked);
+                document.getElementById('rawTextSection').style.display = this.checked ? 'block' : 'none';
+            });
+            
+            tableToggle.addEventListener('change', function() {
+                localStorage.setItem('metarDisplayTable', this.checked);
+                document.getElementById('decodedTableSection').style.display = this.checked ? 'block' : 'none';
+            });
+        }
         // CHART.JS IMPLEMENTATION WITH PROPER DATETIME X-AXIS
         function drawChart(decodedData) {
             if (!decodedData) return;
@@ -658,7 +737,6 @@
             if (document.getElementById('airport-vhhh').checked) selectedAirports.push('VHHH');
             if (document.getElementById('airport-vmmc').checked) selectedAirports.push('VMMC');
             if (document.getElementById('airport-zgsz').checked) selectedAirports.push('ZGSZ');
-
             // Update axis labels
             const elementLabels = {
                 windDir: 'Wind Direction (°)',
@@ -672,12 +750,10 @@
             };
             document.getElementById('leftAxisLabel').textContent = elementLabels[element1] || 'Element 1';
             document.getElementById('rightAxisLabel').textContent = elementLabels[element2] || 'Element 2';
-
             // Only 'weather' and 'rvr' are non-plottable; cloud is now plottable!
             const nonPlottableElements = ['weather', 'rvr'];
             const canPlotElement1 = !nonPlottableElements.includes(element1);
             const canPlotElement2 = !nonPlottableElements.includes(element2);
-
             if (!canPlotElement1 && !canPlotElement2) {
                 if (chart) { chart.destroy(); chart = null; }
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -687,7 +763,6 @@
                 ctx.fillText('Selected elements cannot be plotted (text-based data)', canvas.width / 2, canvas.height / 2);
                 return;
             }
-
             // Get all timestamps from selected airports only
             const allTimestamps = new Set();
             selectedAirports.forEach(station => {
@@ -707,7 +782,6 @@
                 ctx.fillText('No data available to plot', canvas.width / 2, canvas.height / 2);
                 return;
             }
-
             // Helper to extract cloud min/max
             function extractCloudValues(cloudStr) {
                 if (!cloudStr) return { min: null, max: null };
@@ -724,14 +798,12 @@
                     max: Math.max(...cloudHeights)
                 };
             }
-
             const datasets = [];
             const colorMap = {
                 'VHHH': { main: 'rgba(51, 102, 204, 1)', secondary: 'rgba(51, 102, 204, 0.7)' },
                 'VMMC': { main: 'rgba(220, 57, 18, 1)', secondary: 'rgba(220, 57, 18, 0.7)' },
                 'ZGSZ': { main: 'rgba(255, 153, 0, 1)', secondary: 'rgba(255, 153, 0, 0.7)' }
             };
-
             // Process Element 1 (left axis) - only for selected airports
             if (canPlotElement1) {
                 selectedAirports.forEach(station => {
@@ -875,7 +947,6 @@
                     }
                 });
             }
-
             // Process Element 2 (right axis) — same logic as above, only for selected airports
             if (canPlotElement2) {
                 selectedAirports.forEach(station => {
@@ -1015,7 +1086,6 @@
                     }
                 });
             }
-
             if (datasets.length === 0) {
                 if (chart) { chart.destroy(); chart = null; }
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1025,7 +1095,6 @@
                 ctx.fillText('No numeric data available to plot', canvas.width / 2, canvas.height / 2);
                 return;
             }
-
             if (chart) chart.destroy();
             chart = new Chart(ctx, {
                 type: 'line',
@@ -1073,20 +1142,18 @@
                 }
             });
         }
-
         // Add event listeners to select elements and airport checkboxes
-        document.getElementById('element1').addEventListener('change', fetchWeatherData);
-        document.getElementById('element2').addEventListener('change', fetchWeatherData);
         document.getElementById('airport-vhhh').addEventListener('change', fetchWeatherData);
         document.getElementById('airport-vmmc').addEventListener('change', fetchWeatherData);
         document.getElementById('airport-zgsz').addEventListener('change', fetchWeatherData);
-
         // Initialize the page
         window.addEventListener('load', function() {
             initHoursSlider();
+            initElementSelectors();
+            initAirportCheckboxes();
+            initDisplayToggles();
             fetchWeatherData();
         });
-
         // Handle window resize
         window.addEventListener('resize', function() {
             if (chart) {
@@ -1096,4 +1163,3 @@
     </script>
 </body>
 </html>
-```
