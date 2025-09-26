@@ -249,7 +249,8 @@
         <!-- Airport Selection -->
         <div class="controls-section">
             <div class="control-group">             
-                <label>Airports:</label><div class="airport-controls">
+                <label>Airports:</label>
+                <div class="airport-controls">
                     <div class="airport-item">
                         <input class="form-check-input" type="checkbox" id="airport-vhhh" value="VHHH" checked>
                         <label class="form-check-label" for="airport-vhhh">VHHH</label>
@@ -279,7 +280,8 @@
                     <option value="tempDew">Temp & Dew Point</option>
                     <option value="qnh">QNH</option>
                 </select>
-            </div><div class="element-control">
+            </div>
+            <div class="element-control">
                 <label for="element2">Element 2:</label>
                 <select id="element2" class="form-select form-select-sm">
                     <option value="windDir">Wind Dir</option>
@@ -294,8 +296,12 @@
             </div>
         </div>
         <!-- Hours Slider -->
-        <div class="slider-value" id="hoursValue">12 hours</div>
-        <input type="range" min="0" max="6" class="slider" id="hoursSlider">
+        <div class="hours-slider-container">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <input type="range" min="0" max="6" class="slider" id="hoursSlider">
+                <div class="slider-value" id="hoursValue">12 hours</div>
+            </div>
+        </div>
     </div>
     <!-- Fixed Bootstrap Navbar at Bottom - Only Display Toggles -->
     <nav class="navbar navbar-light bg-light fixed-bottom-navbar">
