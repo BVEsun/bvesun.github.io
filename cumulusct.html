@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Top Height Calculator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #e8f4fd;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+            display: none;
+        }
+        .result-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 1rem;
+            display: none;
+        }
+        .disclaimer {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            margin-top: 1.5rem;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Cloud Top Height Estimator</h1>
+    
+    <div class="form-group">
+        <label for="unit">Temperature Unit</label>
+        <select id="unit" onchange="toggleUnitLabels()">
+            <option value="C">Celsius (｢XC)</option>
+            <option value="F">Fahrenheit (｢XF)</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label id="surfaceLabel" for="surfaceTemp">Surface Temperature (｢XC)</label>
+        <input type="number" id="surfaceTemp" step="0.1" placeholder="e.g. 15">
+    </div>
+
+    <div class="form-group">
+        <label id="cttLabel" for="ctt">Cloud Top Temperature (CTT) (｢XC)</label>
+        <input type="number" id="ctt" step="0.1" placeholder="e.g. -20">
+    </div>
+
+    <button onclick="calculateHeight()">Calculate Height</button>
+
+    <div id="errorBox" class="error">Cloud top temperature must be colder than surface temperature.</div>
+
+    <div id="resultBox" class="result-box">
+        <div class="result-title">Estimated Height Above Surface:</div>
+        <div id="heightMeters"></div>
+        <div id="heightFeet" style="margin-top: 0.25rem;"></div>
+    </div>
+
+    <div class="disclaimer">
+        *Uses the International Standard Atmosphere (ISA) environmental lapse rate of 6.5｢XC/km (approx. 3.56｢XF/1,000 ft). Estimates are most accurate for thick, opaque clouds and assume no thermal inversions.
+    </div>
+</div>
+
+<script>
+    function toggleUnitLabels() {
+        const unit = document.getElementById('unit').value;
+        document.getElementById('surfaceLabel').innerText = `Surface Temperature (｢X${unit})`;
+        document.getElementById('cttLabel').innerText = `Cloud Top Temperature (CTT) (｢X${unit})`;
+    }
+
+    function calculateHeight() {
+        const unit = document.getElementById('unit').value;
+        let surfaceTemp = parseFloat(document.getElementById('surfaceTemp').value);
+        let ctt = parseFloat(document.getElementById('ctt').value);
+        
+        const errorBox = document.getElementById('errorBox');
+        const resultBox = document.getElementById('resultBox');
+
+        // Reset display
+        errorBox.style.display = 'none';
+        resultBox.style.display = 'none';
+
+        // Validate inputs
+        if (isNaN(surfaceTemp) || isNaN(ctt)) {
+            alert('Please enter valid numbers for both temperatures.');
+            return;
+        }
+
+        if (ctt >= surfaceTemp) {
+            errorBox.style.display = 'block';
+            return;
+        }
+
+        let heightInMeters, heightInFeet;
+
+        if (unit === 'C') {
+            const tempDiff = surfaceTemp - ctt;
+            // ISA Lapse Rate: 6.5｢XC per 1000 meters (0.0065｢XC per meter)
+            heightInMeters = tempDiff / 0.0065;
+            heightInFeet = heightInMeters * 3.28084;
+        } else {
+            const tempDiff = surfaceTemp - ctt;
+            // ISA Lapse Rate: 3.56616｢XF per 1000 feet (0.00356616｢XF per foot)
+            heightInFeet = tempDiff / 0.00356616;
+            heightInMeters = heightInFeet / 3.28084;
+        }
+
+        // Display results rounded to nearest whole number
+        document.getElementById('heightMeters').innerHTML = `<strong>${Math.round(heightInMeters).toLocaleString()} meters</strong>`;
+        document.getElementById('heightFeet').innerHTML = `<strong>${Math.round(heightInFeet).toLocaleString()} feet</strong>`;
+        
+        resultBox.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
+
